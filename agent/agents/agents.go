@@ -640,7 +640,7 @@ func (r *RunnerAgent) toolRunBuild(path string) string {
 	if err == nil {
 		// Extract template JSON
 		var buildResult struct {
-			Success  bool   `json:"success"`
+			Success  bool        `json:"success"`
 			Template interface{} `json:"template"`
 		}
 		if json.Unmarshal(output, &buildResult) == nil && buildResult.Success {

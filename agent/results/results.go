@@ -21,9 +21,9 @@ import (
 
 // Message represents a single message in the conversation.
 type Message struct {
-	Role      string    `json:"role"`      // "developer", "runner", "system"
-	Content   string    `json:"content"`
-	Timestamp time.Time `json:"timestamp"`
+	Role      string     `json:"role"` // "developer", "runner", "system"
+	Content   string     `json:"content"`
+	Timestamp time.Time  `json:"timestamp"`
 	ToolCalls []ToolCall `json:"tool_calls,omitempty"`
 }
 
@@ -82,12 +82,12 @@ type Session struct {
 // NewSession creates a new session with the given metadata.
 func NewSession(persona, scenario string) *Session {
 	return &Session{
-		ID:        generateID(),
-		Persona:   persona,
-		Scenario:  scenario,
-		StartTime: time.Now(),
-		Messages:  make([]Message, 0),
-		Questions: make([]Question, 0),
+		ID:         generateID(),
+		Persona:    persona,
+		Scenario:   scenario,
+		StartTime:  time.Now(),
+		Messages:   make([]Message, 0),
+		Questions:  make([]Question, 0),
 		LintCycles: make([]LintCycle, 0),
 	}
 }

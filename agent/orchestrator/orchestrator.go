@@ -180,7 +180,7 @@ func (h *HumanDeveloper) Respond(ctx context.Context, message string) (string, e
 
 // AIDeveloper is a Developer backed by an AI agent with a persona.
 type AIDeveloper struct {
-	persona  personas.Persona
+	persona   personas.Persona
 	responder func(ctx context.Context, systemPrompt, message string) (string, error)
 }
 

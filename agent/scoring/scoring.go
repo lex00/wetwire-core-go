@@ -57,9 +57,9 @@ type Score struct {
 	QuestionEfficiency Dimension
 
 	// Metadata
-	Persona      string
-	Scenario     string
-	LintCycles   int
+	Persona       string
+	Scenario      string
+	LintCycles    int
 	QuestionCount int
 }
 
