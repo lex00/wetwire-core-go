@@ -14,12 +14,12 @@ import (
 
 // MockRunner is a test implementation of the Runner interface.
 type MockRunner struct {
-	RunFunc           func(ctx context.Context, prompt string) error
-	AskDeveloperFunc  func(ctx context.Context, question string) (string, error)
-	GeneratedFiles    []string
-	TemplateJSON      string
-	QuestionsAsked    []string
-	PromptReceived    string
+	RunFunc          func(ctx context.Context, prompt string) error
+	AskDeveloperFunc func(ctx context.Context, question string) (string, error)
+	GeneratedFiles   []string
+	TemplateJSON     string
+	QuestionsAsked   []string
+	PromptReceived   string
 }
 
 func (m *MockRunner) Run(ctx context.Context, prompt string) error {
