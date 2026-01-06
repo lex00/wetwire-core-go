@@ -23,6 +23,7 @@ import (
 // RunnerAgent generates infrastructure code using the Anthropic API.
 type RunnerAgent struct {
 	client         anthropic.Client
+	model          string
 	session        *results.Session
 	developer      orchestrator.Developer
 	workDir        string
@@ -86,8 +87,14 @@ func NewRunnerAgent(config RunnerConfig) (*RunnerAgent, error) {
 		config.MaxLintCycles = 3
 	}
 
+	model := config.Model
+	if model == "" {
+		model = string(anthropic.ModelClaudeSonnet4_20250514)
+	}
+
 	return &RunnerAgent{
 		client:        client,
+		model:         model,
 		session:       config.Session,
 		developer:     config.Developer,
 		workDir:       config.WorkDir,
@@ -142,7 +149,7 @@ Always run_lint after writing files, and fix any issues before running build.`
 		}
 
 		params := anthropic.MessageNewParams{
-			Model:     anthropic.ModelClaudeSonnet4_20250514,
+			Model:     anthropic.Model(r.model),
 			MaxTokens: 4096,
 			System:    []anthropic.TextBlockParam{{Text: systemPrompt}},
 			Messages:  messages,

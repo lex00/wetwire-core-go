@@ -27,14 +27,55 @@ go get github.com/lex00/wetwire-core-go
 
 wetwire-core-go is typically used as a dependency of domain packages like wetwire-aws-go.
 
+### Personas
+
 ```go
-import (
-    "github.com/lex00/wetwire-core-go/agent/orchestrator"
-    "github.com/lex00/wetwire-core-go/agent/personas"
-    "github.com/lex00/wetwire-core-go/agent/scoring"
-)
+import "github.com/lex00/wetwire-core-go/agent/personas"
+
+// Get a built-in persona
+persona, err := personas.Get("beginner")
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println(persona.Name, persona.Description)
 ```
+
+### RunnerAgent
+
+```go
+import "github.com/lex00/wetwire-core-go/agent/agents"
+
+config := agents.RunnerConfig{
+    WorkDir:       "./output",
+    MaxLintCycles: 3,
+    Session:       session,        // Optional: for result tracking
+    Developer:     developer,      // Required: responds to questions
+    StreamHandler: func(text string) { fmt.Print(text) }, // Optional
+}
+
+runner, err := agents.NewRunnerAgent(config)
+if err != nil {
+    log.Fatal(err)
+}
+
+err = runner.Run(ctx, "Create an S3 bucket with versioning")
+```
+
+### Session Results
+
+```go
+import "github.com/lex00/wetwire-core-go/agent/results"
+
+session := results.NewSession("aws", "my_bucket", "Create a bucket")
+// ... run agent workflow ...
+session.Complete()
+
+writer := results.NewResultsWriter()
+writer.Write(session, "./output/RESULTS.md")
+```
+
+For complete examples, see [wetwire-aws-go](https://github.com/lex00/wetwire-aws-go) which integrates this package.
 
 ## License
 
-Apache License 2.0
+MIT
