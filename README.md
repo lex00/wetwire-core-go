@@ -16,6 +16,7 @@ wetwire-core-go provides the AI agent framework used by wetwire domain packages 
 - **results** - Session tracking and RESULTS.md generation
 - **orchestrator** - Developer/Runner agent coordination
 - **agents** - Anthropic SDK integration and RunnerAgent
+- **version** - Version info exposure via runtime/debug for dependent packages
 
 ## Installation
 
@@ -72,6 +73,16 @@ session.Complete()
 
 writer := results.NewResultsWriter()
 writer.Write(session, "./output/RESULTS.md")
+```
+
+### Version
+
+```go
+import "github.com/lex00/wetwire-core-go/version"
+
+// Get the module version (returns "dev" for local builds)
+v := version.Version()
+fmt.Println("wetwire-core-go version:", v)
 ```
 
 For complete examples, see [wetwire-aws-go](https://github.com/lex00/wetwire-aws-go) which integrates this package.
