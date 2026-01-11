@@ -7,6 +7,9 @@
 - `cmd/` package for shared CLI command framework with cobra
   - `NewRootCommand`, `NewBuildCommand`, `NewLintCommand`, `NewInitCommand`, `NewValidateCommand`
   - `Builder`, `Linter`, `Initializer`, `Validator` interfaces for domain implementations
+- `serialize/` package for struct-to-map conversion and JSON/YAML serialization
+  - `ToMap`, `ToYAML`, `ToJSON` with naming convention options
+  - `SnakeCase`, `CamelCase`, `PascalCase`, `OmitEmpty` options
 
 ## [1.1.0] - 2026-01-10
 
