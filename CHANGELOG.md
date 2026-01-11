@@ -10,6 +10,9 @@
 - `serialize/` package for struct-to-map conversion and JSON/YAML serialization
   - `ToMap`, `ToYAML`, `ToJSON` with naming convention options
   - `SnakeCase`, `CamelCase`, `PascalCase`, `OmitEmpty` options
+- `lsp/` package for Language Server Protocol infrastructure
+  - `NewServer`, `Diagnose`, `Complete`, `Hover`, `Definition` methods
+  - `DiagnosticProvider`, `CompletionProvider`, `HoverProvider`, `DefinitionProvider` interfaces
 
 ## [1.1.0] - 2026-01-10
 
