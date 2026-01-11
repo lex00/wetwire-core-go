@@ -4,6 +4,9 @@
 
 ### Added
 - `version/` package for exposing version info to dependent packages via `runtime/debug`
+- `cmd/` package for shared CLI command framework with cobra
+  - `NewRootCommand`, `NewBuildCommand`, `NewLintCommand`, `NewInitCommand`, `NewValidateCommand`
+  - `Builder`, `Linter`, `Initializer`, `Validator` interfaces for domain implementations
 
 ## [1.1.0] - 2026-01-10
 

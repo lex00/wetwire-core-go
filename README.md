@@ -17,6 +17,7 @@ wetwire-core-go provides the AI agent framework used by wetwire domain packages 
 - **orchestrator** - Developer/Runner agent coordination
 - **agents** - Anthropic SDK integration and RunnerAgent
 - **version** - Version info exposure via runtime/debug for dependent packages
+- **cmd** - CLI command framework with cobra for consistent CLIs across domain packages
 
 ## Installation
 
@@ -83,6 +84,21 @@ import "github.com/lex00/wetwire-core-go/version"
 // Get the module version (returns "dev" for local builds)
 v := version.Version()
 fmt.Println("wetwire-core-go version:", v)
+```
+
+### CLI Commands
+
+```go
+import "github.com/lex00/wetwire-core-go/cmd"
+
+func main() {
+    root := cmd.NewRootCommand("wetwire-aws", "AWS infrastructure synthesis")
+    root.AddCommand(cmd.NewBuildCommand(myBuilder))
+    root.AddCommand(cmd.NewLintCommand(myLinter))
+    root.AddCommand(cmd.NewInitCommand(myInitializer))
+    root.AddCommand(cmd.NewValidateCommand(myValidator))
+    root.Execute()
+}
 ```
 
 For complete examples, see [wetwire-aws-go](https://github.com/lex00/wetwire-aws-go) which integrates this package.
