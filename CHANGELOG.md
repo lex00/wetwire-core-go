@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- `version/` package for exposing version info to dependent packages via `runtime/debug`
+
 ## [1.1.0] - 2026-01-10
 
 ### Added
