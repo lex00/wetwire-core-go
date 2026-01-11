@@ -17,6 +17,7 @@ func TestAll(t *testing.T) {
 		assert.NotEmpty(t, p.Description)
 		assert.NotEmpty(t, p.SystemPrompt)
 		assert.NotEmpty(t, p.ExpectedBehavior)
+		assert.NotEmpty(t, p.Traits, "persona %s should have traits", p.Name)
 	}
 
 	assert.True(t, names["beginner"])
@@ -63,14 +64,25 @@ func TestPersonaContent(t *testing.T) {
 	// Verify beginner persona encourages safe defaults
 	assert.Contains(t, Beginner.SystemPrompt, "uncertain")
 	assert.Contains(t, Beginner.ExpectedBehavior, "safe defaults")
+	assert.Contains(t, Beginner.Traits, "uncertain")
 
 	// Verify expert persona is precise
 	assert.Contains(t, Expert.SystemPrompt, "precise")
 	assert.Contains(t, Expert.ExpectedBehavior, "minimal questions")
+	assert.Contains(t, Expert.Traits, "precise")
 
 	// Verify terse persona is concise
 	assert.Contains(t, Terse.SystemPrompt, "few words")
+	assert.Contains(t, Terse.Traits, "concise")
 
 	// Verify verbose persona over-explains
 	assert.Contains(t, Verbose.SystemPrompt, "verbose")
+	assert.Contains(t, Verbose.Traits, "wordy")
+}
+
+func TestPersonaTraits(t *testing.T) {
+	// Each persona should have at least 3 traits
+	for _, p := range All() {
+		assert.GreaterOrEqual(t, len(p.Traits), 3, "persona %s should have at least 3 traits", p.Name)
+	}
 }
