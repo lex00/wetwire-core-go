@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- Codecov integration for coverage reporting in CI
+
 ## [1.2.0] - 2026-01-10
 
 ### Added
