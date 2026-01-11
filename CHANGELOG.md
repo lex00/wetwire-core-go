@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-01-10
+
 ### Added
 - `version/` package for exposing version info to dependent packages via `runtime/debug`
 - `cmd/` package for shared CLI command framework with cobra
