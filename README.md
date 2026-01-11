@@ -18,6 +18,7 @@ wetwire-core-go provides the AI agent framework used by wetwire domain packages 
 - **agents** - Anthropic SDK integration and RunnerAgent
 - **version** - Version info exposure via runtime/debug for dependent packages
 - **cmd** - CLI command framework with cobra for consistent CLIs across domain packages
+- **serialize** - Struct-to-map conversion and JSON/YAML serialization with naming conventions
 
 ## Installation
 
@@ -99,6 +100,16 @@ func main() {
     root.AddCommand(cmd.NewValidateCommand(myValidator))
     root.Execute()
 }
+```
+
+### Serialization
+
+```go
+import "github.com/lex00/wetwire-core-go/serialize"
+
+m := serialize.ToMap(resource, serialize.SnakeCase, serialize.OmitEmpty)
+yaml, _ := serialize.ToYAML(resource, serialize.SnakeCase)
+json, _ := serialize.ToJSON(resource, serialize.CamelCase)
 ```
 
 For complete examples, see [wetwire-aws-go](https://github.com/lex00/wetwire-aws-go) which integrates this package.
