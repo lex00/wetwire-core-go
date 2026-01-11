@@ -21,6 +21,9 @@ type Persona struct {
 	// SystemPrompt is injected into the Developer agent's system message
 	SystemPrompt string
 
+	// Traits are key characteristics that influence the persona's behavior
+	Traits []string
+
 	// ExpectedBehavior describes what the Runner should do for this persona
 	ExpectedBehavior string
 }
@@ -31,6 +34,7 @@ var (
 	Beginner = Persona{
 		Name:        "beginner",
 		Description: "New to AWS, uncertain about best practices, asks many questions",
+		Traits:      []string{"uncertain", "questioning", "needs-guidance", "vague"},
 		SystemPrompt: `You are a developer who is new to AWS and infrastructure-as-code.
 You are uncertain about best practices and often ask questions like:
 - "Should this be encrypted?"
@@ -47,6 +51,7 @@ Express uncertainty about security, naming, and configuration choices.`,
 	Intermediate = Persona{
 		Name:        "intermediate",
 		Description: "Has AWS experience, knows what they want but may miss details",
+		Traits:      []string{"experienced", "clear", "detail-oriented", "asks-follow-ups"},
 		SystemPrompt: `You are a developer with moderate AWS experience.
 You know the basics but might miss some details or best practices.
 You can specify what you want but may not know the optimal configuration.
@@ -61,6 +66,7 @@ Occasionally ask for clarification on advanced features.`,
 	Expert = Persona{
 		Name:        "expert",
 		Description: "Deep AWS knowledge, precise requirements, minimal hand-holding needed",
+		Traits:      []string{"precise", "technical", "self-sufficient", "detailed"},
 		SystemPrompt: `You are a senior infrastructure engineer with deep AWS expertise.
 You know exactly what you want and can specify precise configurations.
 Use technical terminology correctly and be specific about:
@@ -78,6 +84,7 @@ If the Runner asks something you already specified, point that out.`,
 	Terse = Persona{
 		Name:        "terse",
 		Description: "Minimal words, expects the system to figure out details",
+		Traits:      []string{"brief", "implicit", "trusting", "concise"},
 		SystemPrompt: `You are extremely concise. Use as few words as possible.
 Examples of your communication style:
 - "log bucket"
@@ -94,6 +101,7 @@ Trust the system to make reasonable choices.`,
 	Verbose = Persona{
 		Name:        "verbose",
 		Description: "Over-explains everything, buries requirements in prose",
+		Traits:      []string{"wordy", "contextual", "tangential", "explanatory"},
 		SystemPrompt: `You are extremely verbose and tend to over-explain.
 Include background context, reasoning, and tangential information.
 Bury the actual requirements within paragraphs of explanation.

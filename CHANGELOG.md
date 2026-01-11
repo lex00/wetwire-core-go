@@ -8,12 +8,14 @@
 - `providers/anthropic` package implementing the Provider interface
 - `kiro/` package stub for future Kiro CLI integration
 - `CreateDeveloperResponderWithProvider` function for provider-agnostic developer agents
+- `Traits` field to `Persona` struct for persona characteristic tagging
 
 ### Changed
 - `RunnerAgent` now accepts a configurable `Provider` instead of direct Anthropic client
 - `RunnerConfig.Provider` field added for custom provider injection
 - Tool definitions now use provider-agnostic `providers.Tool` type
 - Streaming handler type aliased to `providers.StreamHandler`
+- All 5 personas now include trait tags for programmatic access
 
 ## [1.0.0] - 2026-01-03
 
