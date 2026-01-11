@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/anthropics/anthropic-sdk-go"
+	"github.com/lex00/wetwire-core-go/providers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -481,8 +481,8 @@ func TestCheckCompletionGate_EdgeCases(t *testing.T) {
 				pendingLint:    tt.pendingLint,
 			}
 
-			resp := &anthropic.Message{
-				Content: []anthropic.ContentBlockUnion{
+			resp := &providers.MessageResponse{
+				Content: []providers.ContentBlock{
 					{Type: "text", Text: tt.responseText},
 				},
 			}

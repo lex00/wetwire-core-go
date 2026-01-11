@@ -1,4 +1,4 @@
-// Package agents provides AI agents backed by the Anthropic API.
+// Package agents provides AI agents backed by configurable AI providers.
 //
 // The package provides two main agent types:
 // - RunnerAgent: Generates infrastructure code with tool access
@@ -14,15 +14,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/anthropics/anthropic-sdk-go"
-	"github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/lex00/wetwire-core-go/agent/orchestrator"
 	"github.com/lex00/wetwire-core-go/agent/results"
+	"github.com/lex00/wetwire-core-go/providers"
+	anthropicprovider "github.com/lex00/wetwire-core-go/providers/anthropic"
 )
 
-// RunnerAgent generates infrastructure code using the Anthropic API.
+// RunnerAgent generates infrastructure code using a configurable AI provider.
 type RunnerAgent struct {
-	client         anthropic.Client
+	provider       providers.Provider
 	model          string
 	session        *results.Session
 	developer      orchestrator.Developer
@@ -30,7 +30,7 @@ type RunnerAgent struct {
 	generatedFiles []string
 	templateJSON   string
 	maxLintCycles  int
-	streamHandler  StreamHandler
+	streamHandler  providers.StreamHandler
 
 	// Lint enforcement state
 	lintCalled  bool // Has lint been run at least once?
@@ -41,11 +41,16 @@ type RunnerAgent struct {
 
 // StreamHandler is called for each text chunk during streaming.
 // The handler receives text chunks as they are generated.
-type StreamHandler func(text string)
+// Deprecated: Use providers.StreamHandler instead.
+type StreamHandler = providers.StreamHandler
 
 // RunnerConfig configures the RunnerAgent.
 type RunnerConfig struct {
+	// Provider is the AI provider to use. If nil, defaults to Anthropic.
+	Provider providers.Provider
+
 	// APIKey for Anthropic (defaults to ANTHROPIC_API_KEY env var)
+	// Only used when Provider is nil.
 	APIKey string
 
 	// Model to use (defaults to claude-sonnet-4-20250514)
@@ -65,20 +70,23 @@ type RunnerConfig struct {
 
 	// StreamHandler is called for each text chunk during streaming.
 	// If nil, responses are not streamed.
-	StreamHandler StreamHandler
+	StreamHandler providers.StreamHandler
 }
 
 // NewRunnerAgent creates a new RunnerAgent.
 func NewRunnerAgent(config RunnerConfig) (*RunnerAgent, error) {
-	apiKey := config.APIKey
-	if apiKey == "" {
-		apiKey = os.Getenv("ANTHROPIC_API_KEY")
-	}
-	if apiKey == "" {
-		return nil, fmt.Errorf("ANTHROPIC_API_KEY environment variable not set")
-	}
+	provider := config.Provider
 
-	client := anthropic.NewClient(option.WithAPIKey(apiKey))
+	// Default to Anthropic provider if none specified
+	if provider == nil {
+		var err error
+		provider, err = anthropicprovider.New(anthropicprovider.Config{
+			APIKey: config.APIKey,
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	if config.WorkDir == "" {
 		config.WorkDir = "."
@@ -89,11 +97,11 @@ func NewRunnerAgent(config RunnerConfig) (*RunnerAgent, error) {
 
 	model := config.Model
 	if model == "" {
-		model = string(anthropic.ModelClaudeSonnet4_20250514)
+		model = anthropicprovider.DefaultModel
 	}
 
 	return &RunnerAgent{
-		client:        client,
+		provider:      provider,
 		model:         model,
 		session:       config.Session,
 		developer:     config.Developer,
@@ -136,8 +144,8 @@ Always run_lint after writing files, and fix any issues before running build.`
 
 	tools := r.getTools()
 
-	messages := []anthropic.MessageParam{
-		anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
+	messages := []providers.Message{
+		providers.NewUserMessage(prompt),
 	}
 
 	// Agentic loop
@@ -148,39 +156,37 @@ Always run_lint after writing files, and fix any issues before running build.`
 		default:
 		}
 
-		params := anthropic.MessageNewParams{
-			Model:     anthropic.Model(r.model),
+		req := providers.MessageRequest{
+			Model:     r.model,
 			MaxTokens: 4096,
-			System:    []anthropic.TextBlockParam{{Text: systemPrompt}},
+			System:    systemPrompt,
 			Messages:  messages,
 			Tools:     tools,
 		}
 
-		var resp *anthropic.Message
+		var resp *providers.MessageResponse
 		var err error
 
 		if r.streamHandler != nil {
 			// Use streaming API
-			resp, err = r.runWithStreaming(ctx, params)
+			resp, err = r.provider.StreamMessage(ctx, req, r.streamHandler)
 		} else {
 			// Use non-streaming API
-			resp, err = r.client.Messages.New(ctx, params)
+			resp, err = r.provider.CreateMessage(ctx, req)
 		}
 		if err != nil {
 			return fmt.Errorf("API call failed: %w", err)
 		}
 
 		// Add assistant response to messages
-		messages = append(messages, resp.ToParam())
+		messages = append(messages, providers.NewAssistantMessage(resp.Content))
 
 		// Check for stop reason
-		if resp.StopReason == anthropic.StopReasonEndTurn {
+		if resp.StopReason == providers.StopReasonEndTurn {
 			// Completion gate: check if lint requirements are met
 			if enforcement := r.checkCompletionGate(resp); enforcement != "" {
 				// Force agent to continue
-				messages = append(messages, anthropic.NewUserMessage(
-					anthropic.NewTextBlock(enforcement),
-				))
+				messages = append(messages, providers.NewUserMessage(enforcement))
 				continue
 			}
 			// Agent is done
@@ -188,14 +194,14 @@ Always run_lint after writing files, and fix any issues before running build.`
 		}
 
 		// Process tool calls
-		if resp.StopReason == anthropic.StopReasonToolUse {
-			var toolResults []anthropic.ContentBlockParamUnion
+		if resp.StopReason == providers.StopReasonToolUse {
+			var toolResults []providers.ContentBlock
 			var toolsCalled []string
 
 			for _, block := range resp.Content {
 				if block.Type == "tool_use" {
 					result := r.executeTool(ctx, block.Name, block.Input)
-					toolResults = append(toolResults, anthropic.NewToolResultBlock(
+					toolResults = append(toolResults, providers.NewToolResult(
 						block.ID,
 						result,
 						false,
@@ -204,117 +210,16 @@ Always run_lint after writing files, and fix any issues before running build.`
 				}
 			}
 
-			messages = append(messages, anthropic.NewUserMessage(toolResults...))
+			messages = append(messages, providers.NewToolResultMessage(toolResults))
 
 			// Check for lint enforcement violations after this turn
 			if enforcement := r.checkLintEnforcement(toolsCalled); enforcement != "" {
-				messages = append(messages, anthropic.NewUserMessage(
-					anthropic.NewTextBlock(enforcement),
-				))
+				messages = append(messages, providers.NewUserMessage(enforcement))
 			}
 		}
 	}
 
 	return nil
-}
-
-// runWithStreaming executes an API call with streaming and calls the stream handler for each text chunk.
-func (r *RunnerAgent) runWithStreaming(ctx context.Context, params anthropic.MessageNewParams) (*anthropic.Message, error) {
-	stream := r.client.Messages.NewStreaming(ctx, params)
-
-	// Accumulate the full response
-	var message *anthropic.Message
-	var contentBlocks []anthropic.ContentBlockUnion
-	currentTextContent := make(map[int64]*strings.Builder)
-	currentToolInput := make(map[int64]*strings.Builder)
-
-	for stream.Next() {
-		event := stream.Current()
-
-		switch event.Type {
-		case "message_start":
-			// Initialize message from start event
-			startEvent := event.AsMessageStart()
-			message = &startEvent.Message
-			contentBlocks = nil
-			currentTextContent = make(map[int64]*strings.Builder)
-
-		case "content_block_start":
-			// Initialize a new content block
-			startEvent := event.AsContentBlockStart()
-
-			// Initialize content builders based on block type
-			if startEvent.ContentBlock.Type == "text" {
-				currentTextContent[startEvent.Index] = &strings.Builder{}
-			} else if startEvent.ContentBlock.Type == "tool_use" {
-				currentToolInput[startEvent.Index] = &strings.Builder{}
-			}
-
-			// Create the block - Input/Text will be accumulated
-			block := anthropic.ContentBlockUnion{
-				Type: startEvent.ContentBlock.Type,
-				ID:   startEvent.ContentBlock.ID,
-				Name: startEvent.ContentBlock.Name,
-				Text: startEvent.ContentBlock.Text,
-			}
-			contentBlocks = append(contentBlocks, block)
-
-		case "content_block_delta":
-			// Handle content deltas
-			deltaEvent := event.AsContentBlockDelta()
-
-			if deltaEvent.Delta.Type == "text_delta" && deltaEvent.Delta.Text != "" {
-				// Stream the text to handler
-				r.streamHandler(deltaEvent.Delta.Text)
-
-				// Accumulate text
-				if builder, ok := currentTextContent[deltaEvent.Index]; ok {
-					builder.WriteString(deltaEvent.Delta.Text)
-				}
-			}
-
-			// Handle tool use input deltas
-			if deltaEvent.Delta.Type == "input_json_delta" && deltaEvent.Delta.PartialJSON != "" {
-				if builder, ok := currentToolInput[deltaEvent.Index]; ok {
-					builder.WriteString(deltaEvent.Delta.PartialJSON)
-				}
-			}
-
-		case "content_block_stop":
-			// Finalize the content block with accumulated content
-			stopEvent := event.AsContentBlockStop()
-			idx := int(stopEvent.Index)
-			if idx < len(contentBlocks) {
-				// Set accumulated text
-				if builder, ok := currentTextContent[stopEvent.Index]; ok {
-					contentBlocks[idx].Text = builder.String()
-				}
-				// Set accumulated tool input
-				if builder, ok := currentToolInput[stopEvent.Index]; ok {
-					contentBlocks[idx].Input = json.RawMessage(builder.String())
-				}
-			}
-
-		case "message_delta":
-			// Apply final message delta (stop_reason, usage)
-			deltaEvent := event.AsMessageDelta()
-			if message != nil {
-				message.StopReason = deltaEvent.Delta.StopReason
-				message.StopSequence = deltaEvent.Delta.StopSequence
-			}
-		}
-	}
-
-	if err := stream.Err(); err != nil {
-		return nil, err
-	}
-
-	// Set accumulated content blocks on message
-	if message != nil {
-		message.Content = contentBlocks
-	}
-
-	return message, nil
 }
 
 // checkLintEnforcement checks if the agent violated lint enforcement rules.
@@ -344,7 +249,7 @@ Call run_lint now before proceeding.`
 
 // checkCompletionGate checks if the agent can complete.
 // Returns an enforcement message if completion is not allowed.
-func (r *RunnerAgent) checkCompletionGate(resp *anthropic.Message) string {
+func (r *RunnerAgent) checkCompletionGate(resp *providers.MessageResponse) string {
 	// Extract text from response to check for completion indicators
 	var responseText string
 	for _, block := range resp.Content {
@@ -430,100 +335,88 @@ func (r *RunnerAgent) LintPassed() bool {
 }
 
 // getTools returns the tool definitions for the agent.
-func (r *RunnerAgent) getTools() []anthropic.ToolUnionParam {
-	return []anthropic.ToolUnionParam{
+func (r *RunnerAgent) getTools() []providers.Tool {
+	return []providers.Tool{
 		{
-			OfTool: &anthropic.ToolParam{
-				Name:        "init_package",
-				Description: anthropic.String("Initialize a new wetwire-aws package directory"),
-				InputSchema: anthropic.ToolInputSchemaParam{
-					Properties: map[string]any{
-						"name": map[string]any{
-							"type":        "string",
-							"description": "Package name (directory name)",
-						},
+			Name:        "init_package",
+			Description: "Initialize a new wetwire-aws package directory",
+			InputSchema: providers.ToolInputSchema{
+				Properties: map[string]any{
+					"name": map[string]any{
+						"type":        "string",
+						"description": "Package name (directory name)",
 					},
-					Required: []string{"name"},
 				},
+				Required: []string{"name"},
 			},
 		},
 		{
-			OfTool: &anthropic.ToolParam{
-				Name:        "write_file",
-				Description: anthropic.String("Write content to a Go file"),
-				InputSchema: anthropic.ToolInputSchemaParam{
-					Properties: map[string]any{
-						"path": map[string]any{
-							"type":        "string",
-							"description": "File path relative to work directory",
-						},
-						"content": map[string]any{
-							"type":        "string",
-							"description": "File content",
-						},
+			Name:        "write_file",
+			Description: "Write content to a Go file",
+			InputSchema: providers.ToolInputSchema{
+				Properties: map[string]any{
+					"path": map[string]any{
+						"type":        "string",
+						"description": "File path relative to work directory",
 					},
-					Required: []string{"path", "content"},
+					"content": map[string]any{
+						"type":        "string",
+						"description": "File content",
+					},
 				},
+				Required: []string{"path", "content"},
 			},
 		},
 		{
-			OfTool: &anthropic.ToolParam{
-				Name:        "read_file",
-				Description: anthropic.String("Read a file's contents"),
-				InputSchema: anthropic.ToolInputSchemaParam{
-					Properties: map[string]any{
-						"path": map[string]any{
-							"type":        "string",
-							"description": "File path relative to work directory",
-						},
+			Name:        "read_file",
+			Description: "Read a file's contents",
+			InputSchema: providers.ToolInputSchema{
+				Properties: map[string]any{
+					"path": map[string]any{
+						"type":        "string",
+						"description": "File path relative to work directory",
 					},
-					Required: []string{"path"},
 				},
+				Required: []string{"path"},
 			},
 		},
 		{
-			OfTool: &anthropic.ToolParam{
-				Name:        "run_lint",
-				Description: anthropic.String("Run the wetwire-aws linter on the package"),
-				InputSchema: anthropic.ToolInputSchemaParam{
-					Properties: map[string]any{
-						"path": map[string]any{
-							"type":        "string",
-							"description": "Package path to lint",
-						},
+			Name:        "run_lint",
+			Description: "Run the wetwire-aws linter on the package",
+			InputSchema: providers.ToolInputSchema{
+				Properties: map[string]any{
+					"path": map[string]any{
+						"type":        "string",
+						"description": "Package path to lint",
 					},
-					Required: []string{"path"},
 				},
+				Required: []string{"path"},
 			},
 		},
 		{
-			OfTool: &anthropic.ToolParam{
-				Name:        "run_build",
-				Description: anthropic.String("Build the CloudFormation template from the package"),
-				InputSchema: anthropic.ToolInputSchemaParam{
-					Properties: map[string]any{
-						"path": map[string]any{
-							"type":        "string",
-							"description": "Package path to build",
-						},
+			Name:        "run_build",
+			Description: "Build the CloudFormation template from the package",
+			InputSchema: providers.ToolInputSchema{
+				Properties: map[string]any{
+					"path": map[string]any{
+						"type":        "string",
+						"description": "Package path to build",
 					},
-					Required: []string{"path"},
 				},
+				Required: []string{"path"},
 			},
 		},
 		{
-			OfTool: &anthropic.ToolParam{
-				Name:        "ask_developer",
-				Description: anthropic.String("Ask the developer a clarifying question"),
-				InputSchema: anthropic.ToolInputSchemaParam{
-					Properties: map[string]any{
-						"question": map[string]any{
-							"type":        "string",
-							"description": "The question to ask",
-						},
+			Name:        "ask_developer",
+			Description: "Ask the developer a clarifying question",
+			InputSchema: providers.ToolInputSchema{
+				Properties: map[string]any{
+					"question": map[string]any{
+						"type":        "string",
+						"description": "The question to ask",
 					},
-					Required: []string{"question"},
 				},
+				Required: []string{"question"},
 			},
 		},
 	}
@@ -662,21 +555,29 @@ func (r *RunnerAgent) toolRunBuild(path string) string {
 
 // CreateDeveloperResponder creates a responder function for AIDeveloper.
 func CreateDeveloperResponder(apiKey string) func(ctx context.Context, systemPrompt, message string) (string, error) {
-	if apiKey == "" {
-		apiKey = os.Getenv("ANTHROPIC_API_KEY")
-	}
+	return CreateDeveloperResponderWithProvider(nil, apiKey)
+}
 
-	client := anthropic.NewClient(option.WithAPIKey(apiKey))
-
+// CreateDeveloperResponderWithProvider creates a responder function for AIDeveloper using the specified provider.
+func CreateDeveloperResponderWithProvider(provider providers.Provider, apiKey string) func(ctx context.Context, systemPrompt, message string) (string, error) {
 	return func(ctx context.Context, systemPrompt, message string) (string, error) {
-		resp, err := client.Messages.New(ctx, anthropic.MessageNewParams{
-			Model:     anthropic.ModelClaude3_5HaikuLatest,
+		p := provider
+		if p == nil {
+			var err error
+			p, err = anthropicprovider.New(anthropicprovider.Config{APIKey: apiKey})
+			if err != nil {
+				return "", err
+			}
+		}
+
+		req := providers.MessageRequest{
+			Model:     "claude-3-5-haiku-latest",
 			MaxTokens: 1024,
-			System:    []anthropic.TextBlockParam{{Text: systemPrompt}},
-			Messages: []anthropic.MessageParam{
-				anthropic.NewUserMessage(anthropic.NewTextBlock(message)),
-			},
-		})
+			System:    systemPrompt,
+			Messages:  []providers.Message{providers.NewUserMessage(message)},
+		}
+
+		resp, err := p.CreateMessage(ctx, req)
 		if err != nil {
 			return "", err
 		}
