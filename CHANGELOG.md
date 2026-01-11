@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.1.0] - 2026-01-10
+
+### Added
+- Provider abstraction layer (`providers/`) for multi-backend AI support
+- `providers.Provider` interface with `CreateMessage` and `StreamMessage` methods
+- `providers/anthropic` package implementing the Provider interface
+- `kiro/` package stub for future Kiro CLI integration
+- `CreateDeveloperResponderWithProvider` function for provider-agnostic developer agents
+
+### Changed
+- `RunnerAgent` now accepts a configurable `Provider` instead of direct Anthropic client
+- `RunnerConfig.Provider` field added for custom provider injection
+- Tool definitions now use provider-agnostic `providers.Tool` type
+- Streaming handler type aliased to `providers.StreamHandler`
+
 ## [1.0.0] - 2026-01-03
 
 ### Added

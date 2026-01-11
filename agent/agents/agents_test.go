@@ -3,7 +3,7 @@ package agents
 import (
 	"testing"
 
-	"github.com/anthropics/anthropic-sdk-go"
+	"github.com/lex00/wetwire-core-go/providers"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -68,8 +68,8 @@ func TestCheckCompletionGate_NoFiles(t *testing.T) {
 	}
 
 	// No files written yet, allow continuation
-	resp := &anthropic.Message{
-		Content: []anthropic.ContentBlockUnion{
+	resp := &providers.MessageResponse{
+		Content: []providers.ContentBlock{
 			{Type: "text", Text: "Let me think about this..."},
 		},
 	}
@@ -86,8 +86,8 @@ func TestCheckCompletionGate_LintNotCalled(t *testing.T) {
 		pendingLint:    false,
 	}
 
-	resp := &anthropic.Message{
-		Content: []anthropic.ContentBlockUnion{
+	resp := &providers.MessageResponse{
+		Content: []providers.ContentBlock{
 			{Type: "text", Text: "I'm done with the code."},
 		},
 	}
@@ -106,8 +106,8 @@ func TestCheckCompletionGate_PendingLint(t *testing.T) {
 		pendingLint:    true, // Code changed since last lint
 	}
 
-	resp := &anthropic.Message{
-		Content: []anthropic.ContentBlockUnion{
+	resp := &providers.MessageResponse{
+		Content: []providers.ContentBlock{
 			{Type: "text", Text: "The task is complete."},
 		},
 	}
@@ -126,8 +126,8 @@ func TestCheckCompletionGate_LintFailed(t *testing.T) {
 		pendingLint:    false,
 	}
 
-	resp := &anthropic.Message{
-		Content: []anthropic.ContentBlockUnion{
+	resp := &providers.MessageResponse{
+		Content: []providers.ContentBlock{
 			{Type: "text", Text: "All done!"},
 		},
 	}
@@ -146,8 +146,8 @@ func TestCheckCompletionGate_AllGatesPassed(t *testing.T) {
 		pendingLint:    false,
 	}
 
-	resp := &anthropic.Message{
-		Content: []anthropic.ContentBlockUnion{
+	resp := &providers.MessageResponse{
+		Content: []providers.ContentBlock{
 			{Type: "text", Text: "Everything is finished and working."},
 		},
 	}
@@ -177,8 +177,8 @@ func TestCheckCompletionGate_CompletionKeywords(t *testing.T) {
 				pendingLint:    false,
 			}
 
-			resp := &anthropic.Message{
-				Content: []anthropic.ContentBlockUnion{
+			resp := &providers.MessageResponse{
+				Content: []providers.ContentBlock{
 					{Type: "text", Text: tt.text},
 				},
 			}
