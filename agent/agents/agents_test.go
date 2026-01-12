@@ -1,6 +1,7 @@
 package agents
 
 import (
+	"context"
 	"testing"
 
 	"github.com/lex00/wetwire-core-go/providers"
@@ -242,4 +243,111 @@ func TestGetTemplate(t *testing.T) {
 		templateJSON: `{"Resources": {}}`,
 	}
 	assert.Equal(t, `{"Resources": {}}`, r.GetTemplate())
+}
+
+func TestDefaultAWSDomain(t *testing.T) {
+	domain := DefaultAWSDomain()
+
+	assert.Equal(t, "aws", domain.Name)
+	assert.Equal(t, "wetwire-aws", domain.CLICommand)
+	assert.Equal(t, "CloudFormation JSON", domain.OutputFormat)
+	assert.NotEmpty(t, domain.SystemPrompt)
+	assert.Contains(t, domain.SystemPrompt, "wetwire-aws")
+}
+
+func TestNewRunnerAgent_DefaultDomain(t *testing.T) {
+	config := RunnerConfig{
+		Provider: &mockProvider{},
+		WorkDir:  t.TempDir(),
+		// Domain not specified - should default to AWS
+	}
+
+	agent, err := NewRunnerAgent(config)
+	assert.NoError(t, err)
+
+	assert.Equal(t, "aws", agent.domain.Name)
+	assert.Equal(t, "wetwire-aws", agent.domain.CLICommand)
+}
+
+func TestNewRunnerAgent_CustomDomain(t *testing.T) {
+	honeycombDomain := DomainConfig{
+		Name:         "honeycomb",
+		CLICommand:   "wetwire-honeycomb",
+		SystemPrompt: "You are a Honeycomb query generator.",
+		OutputFormat: "Query JSON",
+	}
+
+	config := RunnerConfig{
+		Provider: &mockProvider{},
+		WorkDir:  t.TempDir(),
+		Domain:   honeycombDomain,
+	}
+
+	agent, err := NewRunnerAgent(config)
+	assert.NoError(t, err)
+
+	assert.Equal(t, "honeycomb", agent.domain.Name)
+	assert.Equal(t, "wetwire-honeycomb", agent.domain.CLICommand)
+	assert.Equal(t, "Query JSON", agent.domain.OutputFormat)
+	assert.Equal(t, "You are a Honeycomb query generator.", agent.domain.SystemPrompt)
+}
+
+func TestDomainConfig_ToolDescriptions(t *testing.T) {
+	// Verify the domain config is used in tool descriptions
+	domain := DomainConfig{
+		Name:         "k8s",
+		CLICommand:   "wetwire-k8s",
+		SystemPrompt: "K8s generator",
+		OutputFormat: "Kubernetes YAML",
+	}
+
+	r := &RunnerAgent{
+		domain:  domain,
+		workDir: t.TempDir(),
+	}
+
+	tools := r.getTools()
+
+	// Find the run_lint tool and verify description uses domain
+	var lintTool *providers.Tool
+	var buildTool *providers.Tool
+	for i := range tools {
+		if tools[i].Name == "run_lint" {
+			lintTool = &tools[i]
+		}
+		if tools[i].Name == "run_build" {
+			buildTool = &tools[i]
+		}
+	}
+
+	assert.NotNil(t, lintTool)
+	assert.Contains(t, lintTool.Description, "wetwire-k8s")
+
+	assert.NotNil(t, buildTool)
+	assert.Contains(t, buildTool.Description, "Kubernetes YAML")
+}
+
+// mockProvider implements providers.Provider for testing
+type mockProvider struct{}
+
+func (m *mockProvider) CreateMessage(_ context.Context, _ providers.MessageRequest) (*providers.MessageResponse, error) {
+	return &providers.MessageResponse{
+		Content: []providers.ContentBlock{
+			{Type: "text", Text: "mock response"},
+		},
+		StopReason: "end_turn",
+	}, nil
+}
+
+func (m *mockProvider) StreamMessage(_ context.Context, _ providers.MessageRequest, _ providers.StreamHandler) (*providers.MessageResponse, error) {
+	return &providers.MessageResponse{
+		Content: []providers.ContentBlock{
+			{Type: "text", Text: "mock response"},
+		},
+		StopReason: "end_turn",
+	}, nil
+}
+
+func (m *mockProvider) Name() string {
+	return "mock"
 }

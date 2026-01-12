@@ -20,10 +20,66 @@ import (
 	anthropicprovider "github.com/lex00/wetwire-core-go/providers/anthropic"
 )
 
+// DomainConfig provides domain-specific configuration for the RunnerAgent.
+// This enables the same agent infrastructure to work across different wetwire domains
+// (AWS, Kubernetes, Honeycomb, etc.) by configuring the CLI command and prompts.
+type DomainConfig struct {
+	// Name is the domain identifier (e.g., "aws", "honeycomb", "k8s")
+	Name string
+
+	// CLICommand is the domain CLI binary name (e.g., "wetwire-aws", "wetwire-honeycomb")
+	CLICommand string
+
+	// SystemPrompt provides domain-specific agent instructions
+	SystemPrompt string
+
+	// OutputFormat describes what the build command produces (e.g., "CloudFormation JSON", "Query JSON")
+	OutputFormat string
+}
+
+// DefaultAWSDomain returns the default AWS CloudFormation domain configuration.
+// This provides backwards compatibility for existing AWS integrations.
+func DefaultAWSDomain() DomainConfig {
+	return DomainConfig{
+		Name:       "aws",
+		CLICommand: "wetwire-aws",
+		SystemPrompt: `You are an infrastructure code generator using the wetwire-aws framework.
+Your job is to generate Go code that defines AWS CloudFormation resources.
+
+The user will describe what infrastructure they need. You will:
+1. Ask clarifying questions if the requirements are unclear
+2. Generate Go code using the wetwire-aws patterns
+3. Run the linter and fix any issues
+4. Build the CloudFormation template
+
+Use the wrapper pattern for all resources:
+
+    var MyBucket = s3.Bucket{
+        BucketName: "my-bucket",
+    }
+
+    var MyFunction = lambda.Function{
+        Role: MyRole.Arn,  // Reference to another resource's attribute
+    }
+
+Available tools:
+- init_package: Create a new package directory
+- write_file: Write a Go file
+- read_file: Read a file's contents
+- run_lint: Run the linter on the package
+- run_build: Build the CloudFormation template
+- ask_developer: Ask the developer a clarifying question
+
+Always run_lint after writing files, and fix any issues before running build.`,
+		OutputFormat: "CloudFormation JSON",
+	}
+}
+
 // RunnerAgent generates infrastructure code using a configurable AI provider.
 type RunnerAgent struct {
 	provider       providers.Provider
 	model          string
+	domain         DomainConfig
 	session        *results.Session
 	developer      orchestrator.Developer
 	workDir        string
@@ -46,6 +102,10 @@ type StreamHandler = providers.StreamHandler
 
 // RunnerConfig configures the RunnerAgent.
 type RunnerConfig struct {
+	// Domain provides domain-specific configuration.
+	// If not set, defaults to AWS (DefaultAWSDomain) for backwards compatibility.
+	Domain DomainConfig
+
 	// Provider is the AI provider to use. If nil, defaults to Anthropic.
 	Provider providers.Provider
 
@@ -88,6 +148,12 @@ func NewRunnerAgent(config RunnerConfig) (*RunnerAgent, error) {
 		}
 	}
 
+	// Default to AWS domain for backwards compatibility
+	domain := config.Domain
+	if domain.CLICommand == "" {
+		domain = DefaultAWSDomain()
+	}
+
 	if config.WorkDir == "" {
 		config.WorkDir = "."
 	}
@@ -103,6 +169,7 @@ func NewRunnerAgent(config RunnerConfig) (*RunnerAgent, error) {
 	return &RunnerAgent{
 		provider:      provider,
 		model:         model,
+		domain:        domain,
 		session:       config.Session,
 		developer:     config.Developer,
 		workDir:       config.WorkDir,
@@ -113,34 +180,8 @@ func NewRunnerAgent(config RunnerConfig) (*RunnerAgent, error) {
 
 // Run executes the runner workflow.
 func (r *RunnerAgent) Run(ctx context.Context, prompt string) error {
-	systemPrompt := `You are an infrastructure code generator using the wetwire-aws framework.
-Your job is to generate Go code that defines AWS CloudFormation resources.
-
-The user will describe what infrastructure they need. You will:
-1. Ask clarifying questions if the requirements are unclear
-2. Generate Go code using the wetwire-aws patterns
-3. Run the linter and fix any issues
-4. Build the CloudFormation template
-
-Use the wrapper pattern for all resources:
-
-    var MyBucket = s3.Bucket{
-        BucketName: "my-bucket",
-    }
-
-    var MyFunction = lambda.Function{
-        Role: MyRole.Arn,  // Reference to another resource's attribute
-    }
-
-Available tools:
-- init_package: Create a new package directory
-- write_file: Write a Go file
-- read_file: Read a file's contents
-- run_lint: Run the linter on the package
-- run_build: Build the CloudFormation template
-- ask_developer: Ask the developer a clarifying question
-
-Always run_lint after writing files, and fix any issues before running build.`
+	// Use domain-specific system prompt
+	systemPrompt := r.domain.SystemPrompt
 
 	tools := r.getTools()
 
@@ -335,11 +376,12 @@ func (r *RunnerAgent) LintPassed() bool {
 }
 
 // getTools returns the tool definitions for the agent.
+// Tool descriptions are domain-agnostic where possible.
 func (r *RunnerAgent) getTools() []providers.Tool {
 	return []providers.Tool{
 		{
 			Name:        "init_package",
-			Description: "Initialize a new wetwire-aws package directory",
+			Description: fmt.Sprintf("Initialize a new %s package directory", r.domain.CLICommand),
 			InputSchema: providers.ToolInputSchema{
 				Properties: map[string]any{
 					"name": map[string]any{
@@ -382,7 +424,7 @@ func (r *RunnerAgent) getTools() []providers.Tool {
 		},
 		{
 			Name:        "run_lint",
-			Description: "Run the wetwire-aws linter on the package",
+			Description: fmt.Sprintf("Run the %s linter on the package", r.domain.CLICommand),
 			InputSchema: providers.ToolInputSchema{
 				Properties: map[string]any{
 					"path": map[string]any{
@@ -395,7 +437,7 @@ func (r *RunnerAgent) getTools() []providers.Tool {
 		},
 		{
 			Name:        "run_build",
-			Description: "Build the CloudFormation template from the package",
+			Description: fmt.Sprintf("Build the %s from the package", r.domain.OutputFormat),
 			InputSchema: providers.ToolInputSchema{
 				Properties: map[string]any{
 					"path": map[string]any{
@@ -491,7 +533,7 @@ func (r *RunnerAgent) toolReadFile(path string) string {
 
 func (r *RunnerAgent) toolRunLint(path string) string {
 	fullPath := filepath.Join(r.workDir, path)
-	cmd := exec.Command("wetwire-aws", "lint", fullPath, "--format", "json")
+	cmd := exec.Command(r.domain.CLICommand, "lint", fullPath, "--format", "json")
 	output, err := cmd.CombinedOutput()
 
 	result := string(output)
@@ -533,7 +575,7 @@ func (r *RunnerAgent) toolRunLint(path string) string {
 
 func (r *RunnerAgent) toolRunBuild(path string) string {
 	fullPath := filepath.Join(r.workDir, path)
-	cmd := exec.Command("wetwire-aws", "build", fullPath, "--format", "json")
+	cmd := exec.Command(r.domain.CLICommand, "build", fullPath, "--format", "json")
 	output, err := cmd.CombinedOutput()
 
 	result := string(output)
