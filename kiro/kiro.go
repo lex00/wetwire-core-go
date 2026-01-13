@@ -78,9 +78,9 @@ type MCPServerConfig struct {
 
 // AgentConfig represents the custom agent configuration structure.
 type AgentConfig struct {
-	Name         string   `json:"name"`
-	SystemPrompt string   `json:"systemPrompt"`
-	MCPServers   []string `json:"mcpServers"`
+	Name       string   `json:"name"`
+	Prompt     string   `json:"prompt"`
+	MCPServers []string `json:"mcpServers"`
 }
 
 // GenerateMCPConfig generates the MCP server configuration.
@@ -101,9 +101,9 @@ func GenerateMCPConfig(config Config) MCPConfig {
 // GenerateAgentConfig generates the custom agent configuration.
 func GenerateAgentConfig(config Config) AgentConfig {
 	return AgentConfig{
-		Name:         config.AgentName,
-		SystemPrompt: config.AgentPrompt,
-		MCPServers:   []string{config.MCPCommand},
+		Name:       config.AgentName,
+		Prompt:     config.AgentPrompt,
+		MCPServers: []string{config.MCPCommand},
 	}
 }
 
@@ -172,10 +172,11 @@ func BuildCommand(agentName, prompt string, nonInteractive bool) ([]string, erro
 	args := []string{kiroCmd, "chat", "--agent", agentName}
 
 	if nonInteractive {
-		args = append(args, "--non-interactive")
+		args = append(args, "--no-interactive")
 	}
 
-	args = append(args, "--prompt", prompt)
+	// Prompt is passed as a positional argument
+	args = append(args, prompt)
 
 	return args, nil
 }

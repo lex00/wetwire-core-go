@@ -53,8 +53,8 @@ func TestGenerateAgentConfig(t *testing.T) {
 		t.Errorf("expected name 'test-agent', got %q", agentConfig.Name)
 	}
 
-	if agentConfig.SystemPrompt != "Test system prompt" {
-		t.Errorf("expected system prompt 'Test system prompt', got %q", agentConfig.SystemPrompt)
+	if agentConfig.Prompt != "Test system prompt" {
+		t.Errorf("expected prompt 'Test system prompt', got %q", agentConfig.Prompt)
 	}
 
 	if len(agentConfig.MCPServers) != 1 || agentConfig.MCPServers[0] != "test-mcp" {
@@ -123,14 +123,14 @@ func TestBuildCommand(t *testing.T) {
 			agentName:      "test-agent",
 			prompt:         "test prompt",
 			nonInteractive: false,
-			wantLen:        6, // kiro-cli chat --agent test-agent --prompt "test prompt"
+			wantLen:        5, // kiro-cli chat --agent test-agent "test prompt"
 		},
 		{
 			name:           "non-interactive mode",
 			agentName:      "test-agent",
 			prompt:         "test prompt",
 			nonInteractive: true,
-			wantLen:        7, // kiro-cli chat --agent test-agent --non-interactive --prompt "test prompt"
+			wantLen:        6, // kiro-cli chat --agent test-agent --no-interactive "test prompt"
 		},
 	}
 
@@ -161,13 +161,13 @@ func TestBuildCommand(t *testing.T) {
 			if tt.nonInteractive {
 				found = false
 				for _, arg := range args {
-					if arg == "--non-interactive" {
+					if arg == "--no-interactive" {
 						found = true
 						break
 					}
 				}
 				if !found {
-					t.Errorf("--non-interactive not found in args: %v", args)
+					t.Errorf("--no-interactive not found in args: %v", args)
 				}
 			}
 		})
