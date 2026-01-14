@@ -75,6 +75,53 @@ func TestGenerateAgentConfig(t *testing.T) {
 	}
 }
 
+func TestGenerateAgentConfig_SetsCwd(t *testing.T) {
+	// Test that cwd is set in MCP server config so it runs in the project directory
+	// Without this, wetwire_list scans the wrong directory and returns empty results
+	projectDir := "/test/project/dir"
+
+	config := Config{
+		AgentName:   "test-agent",
+		AgentPrompt: "Test prompt",
+		MCPCommand:  "test-mcp",
+		WorkDir:     projectDir,
+	}
+
+	agentConfig := GenerateAgentConfig(config)
+
+	server, ok := agentConfig.MCPServers["test-mcp"]
+	if !ok {
+		t.Fatal("expected test-mcp server in config")
+	}
+
+	if server.Cwd != projectDir {
+		t.Errorf("expected Cwd = %q, got %q", projectDir, server.Cwd)
+	}
+}
+
+func TestGenerateAgentConfig_DefaultsCwdToCurrentDir(t *testing.T) {
+	// Test that cwd defaults to current directory when WorkDir is empty
+	config := Config{
+		AgentName:   "test-agent",
+		AgentPrompt: "Test prompt",
+		MCPCommand:  "test-mcp",
+		// WorkDir intentionally empty
+	}
+
+	agentConfig := GenerateAgentConfig(config)
+
+	server, ok := agentConfig.MCPServers["test-mcp"]
+	if !ok {
+		t.Fatal("expected test-mcp server in config")
+	}
+
+	// Should default to current working directory
+	cwd, _ := os.Getwd()
+	if server.Cwd != cwd {
+		t.Errorf("expected Cwd to default to %q, got %q", cwd, server.Cwd)
+	}
+}
+
 func TestInstall(t *testing.T) {
 	// Create temp directories
 	tmpDir := t.TempDir()

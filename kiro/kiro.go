@@ -74,6 +74,7 @@ type MCPConfig struct {
 type MCPServerConfig struct {
 	Command string   `json:"command"`
 	Args    []string `json:"args"`
+	Cwd     string   `json:"cwd,omitempty"`
 }
 
 // AgentConfig represents the custom agent configuration structure.
@@ -104,6 +105,12 @@ func GenerateAgentConfig(config Config) AgentConfig {
 	args := []string{config.MCPCommand}
 	args = append(args, config.MCPArgs...)
 
+	// Ensure WorkDir is set - default to current directory
+	workDir := config.WorkDir
+	if workDir == "" {
+		workDir, _ = os.Getwd()
+	}
+
 	return AgentConfig{
 		Name:   config.AgentName,
 		Prompt: config.AgentPrompt,
@@ -111,6 +118,7 @@ func GenerateAgentConfig(config Config) AgentConfig {
 			config.MCPCommand: {
 				Command: config.MCPCommand,
 				Args:    args,
+				Cwd:     workDir,
 			},
 		},
 		// Tools array uses @server_name format to include all tools from that MCP server
