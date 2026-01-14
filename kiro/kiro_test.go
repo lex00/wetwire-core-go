@@ -57,8 +57,15 @@ func TestGenerateAgentConfig(t *testing.T) {
 		t.Errorf("expected prompt 'Test system prompt', got %q", agentConfig.Prompt)
 	}
 
-	if len(agentConfig.MCPServers) != 1 || agentConfig.MCPServers[0] != "test-mcp" {
-		t.Errorf("expected MCPServers = [test-mcp], got %v", agentConfig.MCPServers)
+	if len(agentConfig.MCPServers) != 1 {
+		t.Errorf("expected 1 MCP server, got %d", len(agentConfig.MCPServers))
+	}
+	server, ok := agentConfig.MCPServers["test-mcp"]
+	if !ok {
+		t.Error("expected test-mcp server in config")
+	}
+	if server.Command != "test-mcp" {
+		t.Errorf("expected command 'test-mcp', got %q", server.Command)
 	}
 
 	// Tools array must include @server_name to enable MCP tools

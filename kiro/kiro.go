@@ -78,10 +78,10 @@ type MCPServerConfig struct {
 
 // AgentConfig represents the custom agent configuration structure.
 type AgentConfig struct {
-	Name       string   `json:"name"`
-	Prompt     string   `json:"prompt"`
-	MCPServers []string `json:"mcpServers"`
-	Tools      []string `json:"tools,omitempty"`
+	Name       string                       `json:"name"`
+	Prompt     string                       `json:"prompt"`
+	MCPServers map[string]MCPServerConfig   `json:"mcpServers"`
+	Tools      []string                     `json:"tools,omitempty"`
 }
 
 // GenerateMCPConfig generates the MCP server configuration.
@@ -101,10 +101,18 @@ func GenerateMCPConfig(config Config) MCPConfig {
 
 // GenerateAgentConfig generates the custom agent configuration.
 func GenerateAgentConfig(config Config) AgentConfig {
+	args := []string{config.MCPCommand}
+	args = append(args, config.MCPArgs...)
+
 	return AgentConfig{
-		Name:       config.AgentName,
-		Prompt:     config.AgentPrompt,
-		MCPServers: []string{config.MCPCommand},
+		Name:   config.AgentName,
+		Prompt: config.AgentPrompt,
+		MCPServers: map[string]MCPServerConfig{
+			config.MCPCommand: {
+				Command: config.MCPCommand,
+				Args:    args,
+			},
+		},
 		// Tools array uses @server_name format to include all tools from that MCP server
 		// See: https://github.com/aws/amazon-q-developer-cli/issues/2640
 		Tools: []string{"@" + config.MCPCommand},
