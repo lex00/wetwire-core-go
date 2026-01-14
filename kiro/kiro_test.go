@@ -60,6 +60,12 @@ func TestGenerateAgentConfig(t *testing.T) {
 	if len(agentConfig.MCPServers) != 1 || agentConfig.MCPServers[0] != "test-mcp" {
 		t.Errorf("expected MCPServers = [test-mcp], got %v", agentConfig.MCPServers)
 	}
+
+	// Tools array must include @server_name to enable MCP tools
+	// See: https://github.com/aws/amazon-q-developer-cli/issues/2640
+	if len(agentConfig.Tools) != 1 || agentConfig.Tools[0] != "@test-mcp" {
+		t.Errorf("expected Tools = [@test-mcp], got %v", agentConfig.Tools)
+	}
 }
 
 func TestInstall(t *testing.T) {
