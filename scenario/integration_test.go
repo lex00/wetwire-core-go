@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -346,15 +347,16 @@ func TestIntegration_RecordingWithTermsvg(t *testing.T) {
 		}
 
 		tmpDir := t.TempDir()
-		skill := skillscenario.New()
-		var buf bytes.Buffer
-		skill.SetOutput(&buf)
 
 		// Record skill execution to SVG
+		// Note: skill must write to os.Stdout INSIDE the closure to be captured
 		err := scenario.RunWithRecording("aws_gitlab_skill", scenario.RecordOptions{
 			Enabled:   true,
 			OutputDir: tmpDir,
 		}, func() error {
+			// Create skill inside closure so it gets the redirected stdout
+			skill := skillscenario.New()
+			skill.SetOutput(os.Stdout)
 			return skill.Run(context.Background(), scenarioDir)
 		})
 
@@ -366,8 +368,10 @@ func TestIntegration_RecordingWithTermsvg(t *testing.T) {
 		require.NoError(t, err, "SVG file should exist")
 		assert.Greater(t, info.Size(), int64(0), "SVG should have content")
 
-		// Verify skill output was generated
-		assert.Contains(t, buf.String(), "aws_gitlab_deployment")
+		// Read SVG content to verify it contains scenario output
+		svgContent, err := os.ReadFile(svgPath)
+		require.NoError(t, err)
+		assert.Contains(t, string(svgContent), "aws_gitlab_deployment")
 	})
 
 	t.Run("RecordToSVG convenience function", func(t *testing.T) {
@@ -377,6 +381,8 @@ func TestIntegration_RecordingWithTermsvg(t *testing.T) {
 		executed := false
 		err := scenario.RecordToSVG(svgPath, func() error {
 			executed = true
+			fmt.Println("Recording test output")
+			fmt.Println("This should appear in the SVG")
 			return nil
 		})
 
@@ -385,9 +391,10 @@ func TestIntegration_RecordingWithTermsvg(t *testing.T) {
 			assert.ErrorIs(t, err, scenario.ErrTermsvgNotFound)
 		} else {
 			assert.True(t, executed)
-			// Verify SVG exists
-			_, err := os.Stat(svgPath)
+			// Verify SVG exists and has content
+			info, err := os.Stat(svgPath)
 			assert.NoError(t, err)
+			assert.Greater(t, info.Size(), int64(0), "SVG should have content")
 		}
 	})
 
