@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/lex00/wetwire-core-go/scenario"
@@ -15,15 +16,23 @@ func main() {
 
 	os.MkdirAll(outputDir, 0755)
 
-	err := scenario.RunWithRecording("aws_gitlab_demo", scenario.RecordOptions{
+	// Load the actual prompt from the scenario
+	promptPath := filepath.Join(scenarioDir, "prompt.md")
+	promptContent, err := os.ReadFile(promptPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading prompt: %v\n", err)
+		os.Exit(1)
+	}
+
+	err = scenario.RunWithRecording("aws_gitlab_demo", scenario.RecordOptions{
 		Enabled:       true,
 		OutputDir:     outputDir,
 		TermWidth:     80,
-		TermHeight:    24,
+		TermHeight:    40, // Taller to fit more content
 		LineDelay:     300 * time.Millisecond,
-		TypingSpeed:   50 * time.Millisecond,
+		TypingSpeed:   30 * time.Millisecond, // Faster typing
 		ResponseDelay: 500 * time.Millisecond,
-		// Use defaults for AgentGreeting, UserPrompt, AgentResponse
+		UserPrompt:    string(promptContent), // The actual scenario prompt
 	}, func() error {
 		skill := skillscenario.New()
 		skill.SetOutput(os.Stdout)
