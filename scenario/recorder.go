@@ -15,10 +15,19 @@ import (
 // ErrTermsvgNotFound is returned when termsvg is not installed.
 var ErrTermsvgNotFound = errors.New("termsvg not found: install with 'go install github.com/mrmarble/termsvg/cmd/termsvg@latest'")
 
-// DefaultGreeting is the default greeting shown at the start of recordings.
-const DefaultGreeting = `$ wetwire scenario run %s
+// DefaultAgentGreeting is shown first, before the user types their request.
+const DefaultAgentGreeting = `How can I help you today?
 
-Loading scenario...
+> `
+
+// DefaultUserPrompt is what the user types (with typing simulation).
+const DefaultUserPrompt = `Please run the %s scenario`
+
+// DefaultAgentResponse is shown after the user's prompt, before scenario output.
+const DefaultAgentResponse = `
+
+Running scenario %s...
+
 `
 
 // RecorderConfig configures the scenario recorder.
@@ -32,13 +41,22 @@ type RecorderConfig struct {
 	// Format is the output format (default: svg)
 	Format string
 
-	// Greeting is shown at the start of the recording to provide context.
-	// Use %s as placeholder for scenario name. Empty string disables greeting.
-	// If not set, DefaultGreeting is used.
-	Greeting string
+	// AgentGreeting is shown first, before the user types.
+	// Set to " " to disable. If not set, DefaultAgentGreeting is used.
+	AgentGreeting string
 
-	// GreetingDelay is the pause after greeting before showing output (default: 1s)
-	GreetingDelay time.Duration
+	// UserPrompt is what the user types (with typing simulation).
+	// Use %s as placeholder for scenario name. Set to " " to disable.
+	// If not set, DefaultUserPrompt is used.
+	UserPrompt string
+
+	// AgentResponse is shown after the user's prompt, before scenario output.
+	// Use %s as placeholder for scenario name. Set to " " to disable.
+	// If not set, DefaultAgentResponse is used.
+	AgentResponse string
+
+	// ResponseDelay is the pause after agent response before showing output (default: 500ms)
+	ResponseDelay time.Duration
 
 	// TermWidth is the terminal width in characters (default: 80)
 	TermWidth int
@@ -48,6 +66,10 @@ type RecorderConfig struct {
 
 	// LineDelay is the minimum delay between output lines (default: 0.3s)
 	LineDelay time.Duration
+
+	// TypingSpeed is the delay between characters when simulating typing (default: 50ms)
+	// Set to 0 to output greeting instantly (no typing effect)
+	TypingSpeed time.Duration
 }
 
 // Recorder records scenario execution to SVG using termsvg.
@@ -139,7 +161,7 @@ func (r *Recorder) Record(fn func() error) error {
 }
 
 // generateCastFile creates an asciinema v2 cast file from captured output.
-func (r *Recorder) generateCastFile(path string, output string, duration time.Duration) error {
+func (r *Recorder) generateCastFile(path string, output string, _ time.Duration) error {
 	var buf bytes.Buffer
 
 	// Apply defaults for terminal dimensions
@@ -160,31 +182,68 @@ func (r *Recorder) generateCastFile(path string, output string, duration time.Du
 
 	currentTime := 0.0
 
-	// Add greeting if configured
-	greeting := r.config.Greeting
-	if greeting == "" {
-		greeting = fmt.Sprintf(DefaultGreeting, r.config.ScenarioName)
+	// Apply defaults
+	typingSpeed := r.config.TypingSpeed
+	if typingSpeed == 0 {
+		typingSpeed = 50 * time.Millisecond
+	}
+	responseDelay := r.config.ResponseDelay
+	if responseDelay == 0 {
+		responseDelay = 500 * time.Millisecond
+	}
+	lineDelay := r.config.LineDelay
+	if lineDelay == 0 {
+		lineDelay = 300 * time.Millisecond
 	}
 
-	greetingDelay := r.config.GreetingDelay
-	if greetingDelay == 0 {
-		greetingDelay = time.Second
+	// 1. Agent greeting (instant, shown all at once)
+	agentGreeting := r.config.AgentGreeting
+	if agentGreeting == "" {
+		agentGreeting = DefaultAgentGreeting
 	}
-
-	// Write greeting lines with typing effect
-	greetingLines := strings.Split(greeting, "\n")
-	for _, line := range greetingLines {
-		escapedLine := escapeJSON(line + "\r\n")
-		event := fmt.Sprintf("[%.6f, \"o\", \"%s\"]", currentTime, escapedLine)
+	if strings.TrimSpace(agentGreeting) != "" {
+		escapedGreeting := escapeJSON(agentGreeting)
+		event := fmt.Sprintf("[%.6f, \"o\", \"%s\"]", currentTime, escapedGreeting)
 		buf.WriteString(event)
 		buf.WriteString("\n")
-		currentTime += 0.05 // Fast typing for greeting
+		currentTime += 0.1 // Small pause after greeting
 	}
 
-	// Pause after greeting
-	currentTime += greetingDelay.Seconds()
+	// 2. User prompt (typing simulation - character by character)
+	userPrompt := r.config.UserPrompt
+	if userPrompt == "" {
+		userPrompt = fmt.Sprintf(DefaultUserPrompt, r.config.ScenarioName)
+	}
+	if strings.TrimSpace(userPrompt) != "" {
+		// Type each character
+		for _, char := range userPrompt {
+			escapedChar := escapeJSON(string(char))
+			event := fmt.Sprintf("[%.6f, \"o\", \"%s\"]", currentTime, escapedChar)
+			buf.WriteString(event)
+			buf.WriteString("\n")
+			currentTime += typingSpeed.Seconds()
+		}
+		// Add newline after user finishes typing
+		event := fmt.Sprintf("[%.6f, \"o\", \"\\r\\n\"]", currentTime)
+		buf.WriteString(event)
+		buf.WriteString("\n")
+		currentTime += 0.1
+	}
 
-	// Write output lines with timing
+	// 3. Agent response (instant)
+	agentResponse := r.config.AgentResponse
+	if agentResponse == "" {
+		agentResponse = fmt.Sprintf(DefaultAgentResponse, r.config.ScenarioName)
+	}
+	if strings.TrimSpace(agentResponse) != "" {
+		escapedResponse := escapeJSON(agentResponse)
+		event := fmt.Sprintf("[%.6f, \"o\", \"%s\"]", currentTime, escapedResponse)
+		buf.WriteString(event)
+		buf.WriteString("\n")
+		currentTime += responseDelay.Seconds()
+	}
+
+	// 4. Scenario output (line by line with delay)
 	lines := strings.Split(output, "\n")
 
 	// Filter out empty lines
@@ -200,20 +259,12 @@ func (r *Recorder) generateCastFile(path string, output string, duration time.Du
 		nonEmptyLines = []string{"(no output)"}
 	}
 
-	// Apply line delay (default 0.3s)
-	lineDelay := r.config.LineDelay
-	if lineDelay == 0 {
-		lineDelay = 300 * time.Millisecond
-	}
-	timePerLine := lineDelay.Seconds()
-
 	for _, line := range nonEmptyLines {
-		// Escape the line for JSON
 		escapedLine := escapeJSON(line + "\r\n")
 		event := fmt.Sprintf("[%.6f, \"o\", \"%s\"]", currentTime, escapedLine)
 		buf.WriteString(event)
 		buf.WriteString("\n")
-		currentTime += timePerLine
+		currentTime += lineDelay.Seconds()
 	}
 
 	return os.WriteFile(path, buf.Bytes(), 0644)
@@ -271,13 +322,22 @@ type RecordOptions struct {
 	// GracefulFallback if true, continues without recording if termsvg unavailable
 	GracefulFallback bool
 
-	// Greeting is shown at the start of the recording.
-	// Use %s as placeholder for scenario name.
-	// Leave empty to use DefaultGreeting, set to " " to disable.
-	Greeting string
+	// AgentGreeting is shown first, before the user types.
+	// Set to " " to disable. If not set, DefaultAgentGreeting is used.
+	AgentGreeting string
 
-	// GreetingDelay is the pause after greeting (default: 1s)
-	GreetingDelay time.Duration
+	// UserPrompt is what the user types (with typing simulation).
+	// Use %s as placeholder for scenario name. Set to " " to disable.
+	// If not set, DefaultUserPrompt is used.
+	UserPrompt string
+
+	// AgentResponse is shown after the user's prompt, before scenario output.
+	// Use %s as placeholder for scenario name. Set to " " to disable.
+	// If not set, DefaultAgentResponse is used.
+	AgentResponse string
+
+	// ResponseDelay is the pause after agent response before showing output (default: 500ms)
+	ResponseDelay time.Duration
 
 	// TermWidth is the terminal width in characters (default: 80)
 	TermWidth int
@@ -287,6 +347,10 @@ type RecordOptions struct {
 
 	// LineDelay is the minimum delay between output lines (default: 0.3s)
 	LineDelay time.Duration
+
+	// TypingSpeed is the delay between characters when simulating typing (default: 50ms)
+	// Set to 0 to output greeting instantly (no typing effect)
+	TypingSpeed time.Duration
 }
 
 // RunWithRecording runs a scenario with optional recording.
@@ -311,11 +375,14 @@ func RunWithRecording(name string, opts RecordOptions, fn func() error) error {
 	config := RecorderConfig{
 		OutputDir:     opts.OutputDir,
 		ScenarioName:  name,
-		Greeting:      opts.Greeting,
-		GreetingDelay: opts.GreetingDelay,
+		AgentGreeting: opts.AgentGreeting,
+		UserPrompt:    opts.UserPrompt,
+		AgentResponse: opts.AgentResponse,
+		ResponseDelay: opts.ResponseDelay,
 		TermWidth:     opts.TermWidth,
 		TermHeight:    opts.TermHeight,
 		LineDelay:     opts.LineDelay,
+		TypingSpeed:   opts.TypingSpeed,
 	}
 
 	recorder := NewRecorder(config)
