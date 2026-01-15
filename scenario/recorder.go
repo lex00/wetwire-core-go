@@ -1,10 +1,15 @@
 package scenario
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
+	"time"
 )
 
 // ErrTermsvgNotFound is returned when termsvg is not installed.
@@ -51,7 +56,7 @@ func (r *Recorder) CastPath() string {
 	return filepath.Join(r.config.OutputDir, r.config.ScenarioName+".cast")
 }
 
-// Record executes the given function while recording terminal output to SVG.
+// Record executes the given function while recording output to SVG.
 // If termsvg is not installed, returns ErrTermsvgNotFound.
 func (r *Recorder) Record(fn func() error) error {
 	if !CanRecord() {
@@ -65,38 +70,103 @@ func (r *Recorder) Record(fn func() error) error {
 	castPath := r.CastPath()
 	svgPath := r.OutputPath()
 
-	// Start recording with termsvg
-	// termsvg rec <output.cast> -- <command>
-	// For our use case, we'll use a wrapper approach
-
-	// Create a temporary script to run the function
-	// This is a simplified approach - in production you might use PTY
-	cmd := exec.Command("termsvg", "rec", castPath)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-
-	// Start the recording
-	if err := cmd.Start(); err != nil {
-		return err
+	// Capture the function's output
+	var buf bytes.Buffer
+	oldStdout := os.Stdout
+	readPipe, writePipe, err := os.Pipe()
+	if err != nil {
+		return fmt.Errorf("failed to create pipe: %w", err)
 	}
 
-	// Execute the scenario function
+	os.Stdout = writePipe
+
+	// Copy output in background
+	done := make(chan error)
+	go func() {
+		_, err := io.Copy(&buf, readPipe)
+		done <- err
+	}()
+
+	// Execute the function
+	startTime := time.Now()
 	fnErr := fn()
+	duration := time.Since(startTime)
 
-	// Wait for recording to finish
-	_ = cmd.Wait()
+	// Restore stdout and close pipe
+	os.Stdout = oldStdout
+	_ = writePipe.Close()
+	<-done
+	_ = readPipe.Close()
 
-	// Export to SVG
+	// Generate asciinema cast file
+	if err := r.generateCastFile(castPath, buf.String(), duration); err != nil {
+		return fmt.Errorf("failed to generate cast file: %w", err)
+	}
+
+	// Export to SVG using termsvg
 	exportCmd := exec.Command("termsvg", "export", castPath, "-o", svgPath)
-	if err := exportCmd.Run(); err != nil {
-		return err
+	if output, err := exportCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to export SVG: %w: %s", err, output)
 	}
 
 	// Clean up intermediate cast file
 	r.Cleanup()
 
 	return fnErr
+}
+
+// generateCastFile creates an asciinema v2 cast file from captured output.
+func (r *Recorder) generateCastFile(path string, output string, duration time.Duration) error {
+	var buf bytes.Buffer
+
+	// Write header (asciinema v2 format)
+	header := fmt.Sprintf(`{"version": 2, "width": 120, "height": 40, "timestamp": %d, "title": "%s"}`,
+		time.Now().Unix(), r.config.ScenarioName)
+	buf.WriteString(header)
+	buf.WriteString("\n")
+
+	// Write output lines with timing
+	lines := strings.Split(output, "\n")
+
+	// Filter out empty lines
+	var nonEmptyLines []string
+	for _, line := range lines {
+		if line != "" {
+			nonEmptyLines = append(nonEmptyLines, line)
+		}
+	}
+
+	// If no output, add a placeholder
+	if len(nonEmptyLines) == 0 {
+		nonEmptyLines = []string{"(no output)"}
+	}
+
+	timePerLine := float64(duration.Seconds()) / float64(len(nonEmptyLines)+1)
+	if timePerLine < 0.01 {
+		timePerLine = 0.1 // Minimum delay between lines
+	}
+	currentTime := 0.0
+
+	for _, line := range nonEmptyLines {
+		// Escape the line for JSON
+		escapedLine := escapeJSON(line + "\r\n")
+		event := fmt.Sprintf("[%.6f, \"o\", \"%s\"]", currentTime, escapedLine)
+		buf.WriteString(event)
+		buf.WriteString("\n")
+		currentTime += timePerLine
+	}
+
+	return os.WriteFile(path, buf.Bytes(), 0644)
+}
+
+// escapeJSON escapes a string for use in JSON.
+func escapeJSON(s string) string {
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "\"", "\\\"")
+	s = strings.ReplaceAll(s, "\n", "\\n")
+	s = strings.ReplaceAll(s, "\r", "\\r")
+	s = strings.ReplaceAll(s, "\t", "\\t")
+	return s
 }
 
 // ensureOutputDir creates the output directory if it doesn't exist.
