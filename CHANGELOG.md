@@ -4,6 +4,10 @@
 
 ### Added
 - Codecov integration for coverage reporting in CI
+- `providers/kiro` package implementing the Provider interface for Kiro CLI
+  - Wraps `kiro.RunTest()` for non-interactive AI execution
+  - Supports `CreateMessage` and `StreamMessage` methods
+  - Closes #23
 
 ## [1.2.0] - 2026-01-10
 
