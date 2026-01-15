@@ -15,10 +15,17 @@ import (
 // ErrTermsvgNotFound is returned when termsvg is not installed.
 var ErrTermsvgNotFound = errors.New("termsvg not found: install with 'go install github.com/mrmarble/termsvg/cmd/termsvg@latest'")
 
-// DefaultGreeting is the default greeting shown at the start of recordings.
-const DefaultGreeting = `$ wetwire scenario run %s
+// DefaultAgentGreeting is shown first - the agent asking how to help.
+const DefaultAgentGreeting = `How can I help you today?
 
-Loading scenario...
+> `
+
+// DefaultUserPrompt should be set to the actual prompt content.
+const DefaultUserPrompt = ``
+
+// DefaultAgentResponse is shown after user prompt, before output.
+const DefaultAgentResponse = `
+
 `
 
 // RecorderConfig configures the scenario recorder.
@@ -32,13 +39,22 @@ type RecorderConfig struct {
 	// Format is the output format (default: svg)
 	Format string
 
-	// Greeting is shown at the start of the recording to provide context.
-	// Use %s as placeholder for scenario name. Empty string disables greeting.
-	// If not set, DefaultGreeting is used.
-	Greeting string
+	// AgentGreeting is shown first, before the user types.
+	// Set to " " to disable. If not set, DefaultAgentGreeting is used.
+	AgentGreeting string
 
-	// GreetingDelay is the pause after greeting before showing output (default: 1s)
-	GreetingDelay time.Duration
+	// UserPrompt is what the user types (with typing simulation).
+	// Use %s as placeholder for scenario name. Set to " " to disable.
+	// If not set, DefaultUserPrompt is used.
+	UserPrompt string
+
+	// AgentResponse is shown after the user's prompt, before scenario output.
+	// Use %s as placeholder for scenario name. Set to " " to disable.
+	// If not set, DefaultAgentResponse is used.
+	AgentResponse string
+
+	// ResponseDelay is the pause after agent response before showing output (default: 500ms)
+	ResponseDelay time.Duration
 
 	// TermWidth is the terminal width in characters (default: 80)
 	TermWidth int
@@ -48,6 +64,10 @@ type RecorderConfig struct {
 
 	// LineDelay is the minimum delay between output lines (default: 0.3s)
 	LineDelay time.Duration
+
+	// TypingSpeed is the delay between characters when simulating typing (default: 50ms)
+	// Set to 0 to output greeting instantly (no typing effect)
+	TypingSpeed time.Duration
 }
 
 // Recorder records scenario execution to SVG using termsvg.
@@ -63,10 +83,28 @@ func NewRecorder(config RecorderConfig) *Recorder {
 	return &Recorder{config: config}
 }
 
+// findTermsvg returns the path to termsvg, checking common locations.
+func findTermsvg() string {
+	// First check PATH
+	if path, err := exec.LookPath("termsvg"); err == nil {
+		return path
+	}
+
+	// Check ~/go/bin (common Go install location)
+	home, err := os.UserHomeDir()
+	if err == nil {
+		goBinPath := filepath.Join(home, "go", "bin", "termsvg")
+		if _, err := os.Stat(goBinPath); err == nil {
+			return goBinPath
+		}
+	}
+
+	return ""
+}
+
 // CanRecord returns true if termsvg is available on the system.
 func CanRecord() bool {
-	_, err := exec.LookPath("termsvg")
-	return err == nil
+	return findTermsvg() != ""
 }
 
 // OutputPath returns the path to the output SVG file.
@@ -127,9 +165,15 @@ func (r *Recorder) Record(fn func() error) error {
 	}
 
 	// Export to SVG using termsvg
-	exportCmd := exec.Command("termsvg", "export", castPath, "-o", svgPath)
+	termsvgPath := findTermsvg()
+	exportCmd := exec.Command(termsvgPath, "export", castPath, "-o", svgPath)
 	if output, err := exportCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to export SVG: %w: %s", err, output)
+	}
+
+	// Patch SVG to not loop (play once and stop at end)
+	if err := patchSVGNoLoop(svgPath); err != nil {
+		return fmt.Errorf("failed to patch SVG: %w", err)
 	}
 
 	// Clean up intermediate cast file
@@ -139,7 +183,7 @@ func (r *Recorder) Record(fn func() error) error {
 }
 
 // generateCastFile creates an asciinema v2 cast file from captured output.
-func (r *Recorder) generateCastFile(path string, output string, duration time.Duration) error {
+func (r *Recorder) generateCastFile(path string, output string, _ time.Duration) error {
 	var buf bytes.Buffer
 
 	// Apply defaults for terminal dimensions
@@ -160,31 +204,78 @@ func (r *Recorder) generateCastFile(path string, output string, duration time.Du
 
 	currentTime := 0.0
 
-	// Add greeting if configured
-	greeting := r.config.Greeting
-	if greeting == "" {
-		greeting = fmt.Sprintf(DefaultGreeting, r.config.ScenarioName)
+	// Apply defaults
+	typingSpeed := r.config.TypingSpeed
+	if typingSpeed == 0 {
+		typingSpeed = 50 * time.Millisecond
+	}
+	responseDelay := r.config.ResponseDelay
+	if responseDelay == 0 {
+		responseDelay = 500 * time.Millisecond
+	}
+	lineDelay := r.config.LineDelay
+	if lineDelay == 0 {
+		lineDelay = 300 * time.Millisecond
 	}
 
-	greetingDelay := r.config.GreetingDelay
-	if greetingDelay == 0 {
-		greetingDelay = time.Second
+	// 1. Agent greeting (instant, shown all at once)
+	agentGreeting := r.config.AgentGreeting
+	if agentGreeting == "" {
+		agentGreeting = DefaultAgentGreeting
 	}
-
-	// Write greeting lines with typing effect
-	greetingLines := strings.Split(greeting, "\n")
-	for _, line := range greetingLines {
-		escapedLine := escapeJSON(line + "\r\n")
-		event := fmt.Sprintf("[%.6f, \"o\", \"%s\"]", currentTime, escapedLine)
+	if strings.TrimSpace(agentGreeting) != "" {
+		escapedGreeting := escapeJSON(agentGreeting)
+		event := fmt.Sprintf("[%.6f, \"o\", \"%s\"]", currentTime, escapedGreeting)
 		buf.WriteString(event)
 		buf.WriteString("\n")
-		currentTime += 0.05 // Fast typing for greeting
+		currentTime += 0.1 // Small pause after header
 	}
 
-	// Pause after greeting
-	currentTime += greetingDelay.Seconds()
+	// 2. User prompt (typing simulation - character by character)
+	userPrompt := r.config.UserPrompt
+	if userPrompt == "" {
+		userPrompt = fmt.Sprintf(DefaultUserPrompt, r.config.ScenarioName)
+	}
+	if strings.TrimSpace(userPrompt) != "" {
+		// Type each character
+		for _, char := range userPrompt {
+			var output string
+			if char == '\n' {
+				// Newline needs carriage return to go back to left margin
+				output = "\\r\\n"
+				currentTime += 0.05 // Small pause at end of line
+			} else if char == '\r' {
+				// Skip carriage returns (we handle newlines above)
+				continue
+			} else {
+				output = escapeJSON(string(char))
+			}
+			event := fmt.Sprintf("[%.6f, \"o\", \"%s\"]", currentTime, output)
+			buf.WriteString(event)
+			buf.WriteString("\n")
+			currentTime += typingSpeed.Seconds()
+		}
+		// Add final newline after user finishes typing
+		event := fmt.Sprintf("[%.6f, \"o\", \"\\r\\n\"]", currentTime)
+		buf.WriteString(event)
+		buf.WriteString("\n")
+		currentTime += 0.1
+	}
 
-	// Write output lines with timing
+	// 3. Agent response (instant)
+	agentResponse := r.config.AgentResponse
+	if agentResponse == "" {
+		agentResponse = fmt.Sprintf(DefaultAgentResponse, r.config.ScenarioName)
+	}
+	if strings.TrimSpace(agentResponse) != "" {
+		escapedResponse := escapeJSON(agentResponse)
+		event := fmt.Sprintf("[%.6f, \"o\", \"%s\"]", currentTime, escapedResponse)
+		buf.WriteString(event)
+		buf.WriteString("\n")
+		currentTime += responseDelay.Seconds()
+	}
+
+	// 4. Scenario output (line by line with delay)
 	lines := strings.Split(output, "\n")
 
 	// Filter out empty lines
@@ -200,20 +291,12 @@ func (r *Recorder) generateCastFile(path string, output string, duration time.Du
 		nonEmptyLines = []string{"(no output)"}
 	}
 
-	// Apply line delay (default 0.3s)
-	lineDelay := r.config.LineDelay
-	if lineDelay == 0 {
-		lineDelay = 300 * time.Millisecond
-	}
-	timePerLine := lineDelay.Seconds()
-
 	for _, line := range nonEmptyLines {
-		// Escape the line for JSON
 		escapedLine := escapeJSON(line + "\r\n")
 		event := fmt.Sprintf("[%.6f, \"o\", \"%s\"]", currentTime, escapedLine)
 		buf.WriteString(event)
 		buf.WriteString("\n")
-		currentTime += timePerLine
+		currentTime += lineDelay.Seconds()
 	}
 
 	return os.WriteFile(path, buf.Bytes(), 0644)
@@ -227,6 +310,27 @@ func escapeJSON(s string) string {
 	s = strings.ReplaceAll(s, "\r", "\\r")
 	s = strings.ReplaceAll(s, "\t", "\\t")
 	return s
+}
+
+// patchSVGNoLoop modifies the SVG to play once and stop at the final frame.
+func patchSVGNoLoop(svgPath string) error {
+	content, err := os.ReadFile(svgPath)
+	if err != nil {
+		return err
+	}
+
+	svg := string(content)
+
+	// Change from infinite loop to play once
+	svg = strings.Replace(svg, "animation-iteration-count:infinite", "animation-iteration-count:1", 1)
+
+	// Add fill-mode to keep final frame visible (insert after iteration-count)
+	svg = strings.Replace(svg,
+		"animation-iteration-count:1;",
+		"animation-iteration-count:1;animation-fill-mode:forwards;",
+		1)
+
+	return os.WriteFile(svgPath, []byte(svg), 0644)
 }
 
 // ensureOutputDir creates the output directory if it doesn't exist.
@@ -271,13 +375,22 @@ type RecordOptions struct {
 	// GracefulFallback if true, continues without recording if termsvg unavailable
 	GracefulFallback bool
 
-	// Greeting is shown at the start of the recording.
-	// Use %s as placeholder for scenario name.
-	// Leave empty to use DefaultGreeting, set to " " to disable.
-	Greeting string
+	// AgentGreeting is shown first, before the user types.
+	// Set to " " to disable. If not set, DefaultAgentGreeting is used.
+	AgentGreeting string
 
-	// GreetingDelay is the pause after greeting (default: 1s)
-	GreetingDelay time.Duration
+	// UserPrompt is what the user types (with typing simulation).
+	// Use %s as placeholder for scenario name. Set to " " to disable.
+	// If not set, DefaultUserPrompt is used.
+	UserPrompt string
+
+	// AgentResponse is shown after the user's prompt, before scenario output.
+	// Use %s as placeholder for scenario name. Set to " " to disable.
+	// If not set, DefaultAgentResponse is used.
+	AgentResponse string
+
+	// ResponseDelay is the pause after agent response before showing output (default: 500ms)
+	ResponseDelay time.Duration
 
 	// TermWidth is the terminal width in characters (default: 80)
 	TermWidth int
@@ -287,6 +400,10 @@ type RecordOptions struct {
 
 	// LineDelay is the minimum delay between output lines (default: 0.3s)
 	LineDelay time.Duration
+
+	// TypingSpeed is the delay between characters when simulating typing (default: 50ms)
+	// Set to 0 to output greeting instantly (no typing effect)
+	TypingSpeed time.Duration
 }
 
 // RunWithRecording runs a scenario with optional recording.
@@ -311,13 +428,184 @@ func RunWithRecording(name string, opts RecordOptions, fn func() error) error {
 	config := RecorderConfig{
 		OutputDir:     opts.OutputDir,
 		ScenarioName:  name,
-		Greeting:      opts.Greeting,
-		GreetingDelay: opts.GreetingDelay,
+		AgentGreeting: opts.AgentGreeting,
+		UserPrompt:    opts.UserPrompt,
+		AgentResponse: opts.AgentResponse,
+		ResponseDelay: opts.ResponseDelay,
 		TermWidth:     opts.TermWidth,
 		TermHeight:    opts.TermHeight,
 		LineDelay:     opts.LineDelay,
+		TypingSpeed:   opts.TypingSpeed,
 	}
 
 	recorder := NewRecorder(config)
 	return recorder.Record(fn)
+}
+
+// SessionRecordOptions configures recording of a Session conversation.
+type SessionRecordOptions struct {
+	// OutputDir is where recordings are saved (default: ./recordings)
+	OutputDir string
+
+	// TermWidth is the terminal width in characters (default: 80)
+	TermWidth int
+
+	// TermHeight is the terminal height in characters (default: 30)
+	TermHeight int
+
+	// TypingSpeed is delay between characters for user messages (default: 25ms)
+	TypingSpeed time.Duration
+
+	// LineDelay is delay between lines for agent messages (default: 100ms)
+	LineDelay time.Duration
+
+	// MessageDelay is pause between conversation turns (default: 500ms)
+	MessageDelay time.Duration
+}
+
+// RecordSession records a conversation from session messages to SVG.
+// Developer messages are shown with typing simulation (user input).
+// Runner messages are shown line-by-line (agent output).
+func RecordSession(session SessionMessages, opts SessionRecordOptions) error {
+	if !CanRecord() {
+		return ErrTermsvgNotFound
+	}
+
+	// Apply defaults
+	if opts.OutputDir == "" {
+		opts.OutputDir = "./recordings"
+	}
+	if opts.TermWidth == 0 {
+		opts.TermWidth = 80
+	}
+	if opts.TermHeight == 0 {
+		opts.TermHeight = 30
+	}
+	if opts.TypingSpeed == 0 {
+		opts.TypingSpeed = 25 * time.Millisecond
+	}
+	if opts.LineDelay == 0 {
+		opts.LineDelay = 100 * time.Millisecond
+	}
+	if opts.MessageDelay == 0 {
+		opts.MessageDelay = 500 * time.Millisecond
+	}
+
+	// Ensure output dir exists
+	if err := os.MkdirAll(opts.OutputDir, 0755); err != nil {
+		return fmt.Errorf("creating output directory: %w", err)
+	}
+
+	castPath := filepath.Join(opts.OutputDir, session.Name()+".cast")
+	svgPath := filepath.Join(opts.OutputDir, session.Name()+".svg")
+
+	// Generate cast file from session messages
+	if err := generateSessionCast(castPath, session, opts); err != nil {
+		return fmt.Errorf("generating cast file: %w", err)
+	}
+
+	// Export to SVG with black background
+	termsvgPath := findTermsvg()
+	exportCmd := exec.Command(termsvgPath, "export", castPath, "-o", svgPath, "-b", "#000000")
+	if output, err := exportCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("exporting SVG: %w: %s", err, output)
+	}
+
+	// Patch SVG to not loop
+	if err := patchSVGNoLoop(svgPath); err != nil {
+		return fmt.Errorf("patching SVG: %w", err)
+	}
+
+	// Clean up cast file
+	_ = os.Remove(castPath)
+
+	return nil
+}
+
+// SessionMessages interface for accessing session conversation data.
+type SessionMessages interface {
+	Name() string
+	GetMessages() []SessionMessage
+}
+
+// SessionMessage represents a single message in a conversation.
+type SessionMessage struct {
+	Role    string // "developer" (user) or "runner" (agent)
+	Content string
+}
+
+// generateSessionCast creates an asciinema cast file from session messages.
+func generateSessionCast(path string, session SessionMessages, opts SessionRecordOptions) error {
+	var buf bytes.Buffer
+
+	// Write header
+	header := fmt.Sprintf(`{"version": 2, "width": %d, "height": %d, "timestamp": %d, "title": "%s"}`,
+		opts.TermWidth, opts.TermHeight, time.Now().Unix(), session.Name())
+	buf.WriteString(header)
+	buf.WriteString("\n")
+
+	currentTime := 0.0
+
+	// ANSI color codes
+	greenOn := "\\u001b[32m"  // Green text
+	colorOff := "\\u001b[0m"  // Reset color
+
+	for _, msg := range session.GetMessages() {
+		if msg.Role == "developer" {
+			// User message - show green prompt and type in green
+			prompt := greenOn + "> "
+			event := fmt.Sprintf("[%.6f, \"o\", \"%s\"]", currentTime, prompt)
+			buf.WriteString(event)
+			buf.WriteString("\n")
+			currentTime += 0.05
+
+			// Type each character in green
+			for _, char := range msg.Content {
+				var output string
+				if char == '\n' {
+					output = "\\r\\n" + greenOn + "> " // New line with green prompt
+					currentTime += 0.05
+				} else if char == '\r' {
+					continue
+				} else {
+					output = escapeJSON(string(char))
+				}
+				event := fmt.Sprintf("[%.6f, \"o\", \"%s\"]", currentTime, output)
+				buf.WriteString(event)
+				buf.WriteString("\n")
+				currentTime += opts.TypingSpeed.Seconds()
+			}
+
+			// End of user input - reset color and add blank lines
+			event = fmt.Sprintf("[%.6f, \"o\", \"%s\\r\\n\\r\\n\\r\\n\"]", currentTime, colorOff)
+			buf.WriteString(event)
+			buf.WriteString("\n")
+			currentTime += opts.MessageDelay.Seconds()
+
+		} else if msg.Role == "runner" {
+			// Agent message - output line by line
+			lines := strings.Split(msg.Content, "\n")
+			for _, line := range lines {
+				if line == "" {
+					// Empty line
+					event := fmt.Sprintf("[%.6f, \"o\", \"\\r\\n\"]", currentTime)
+					buf.WriteString(event)
+					buf.WriteString("\n")
+				} else {
+					escapedLine := escapeJSON(line + "\r\n")
+					event := fmt.Sprintf("[%.6f, \"o\", \"%s\"]", currentTime, escapedLine)
+					buf.WriteString(event)
+					buf.WriteString("\n")
+				}
+				currentTime += opts.LineDelay.Seconds()
+			}
+			// Add blank lines after agent response
+			event := fmt.Sprintf("[%.6f, \"o\", \"\\r\\n\\r\\n\"]", currentTime)
+			buf.WriteString(event)
+			buf.WriteString("\n")
+			currentTime += opts.MessageDelay.Seconds()
+		}
+	}
+
+	return os.WriteFile(path, buf.Bytes(), 0644)
 }
