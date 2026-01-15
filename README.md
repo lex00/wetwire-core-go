@@ -17,6 +17,8 @@ wetwire-core-go provides the AI agent framework used by wetwire domain packages 
 - **results** - Session tracking and RESULTS.md generation
 - **orchestrator** - Developer/Runner agent coordination
 - **agents** - Anthropic SDK integration and RunnerAgent
+- **scenario** - Multi-domain scenario definitions with cross-domain validation
+- **recording** - Animated SVG recordings of user/agent conversations
 - **version** - Version info exposure via runtime/debug for dependent packages
 - **cmd** - CLI command framework with cobra for consistent CLIs across domain packages
 - **serialize** - Struct-to-map conversion and JSON/YAML serialization with naming conventions
