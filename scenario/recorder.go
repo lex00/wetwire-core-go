@@ -504,9 +504,9 @@ func RecordSession(session SessionMessages, opts SessionRecordOptions) error {
 		return fmt.Errorf("generating cast file: %w", err)
 	}
 
-	// Export to SVG
+	// Export to SVG with black background
 	termsvgPath := findTermsvg()
-	exportCmd := exec.Command(termsvgPath, "export", castPath, "-o", svgPath)
+	exportCmd := exec.Command(termsvgPath, "export", castPath, "-o", svgPath, "-b", "#000000")
 	if output, err := exportCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("exporting SVG: %w: %s", err, output)
 	}
@@ -546,21 +546,24 @@ func generateSessionCast(path string, session SessionMessages, opts SessionRecor
 
 	currentTime := 0.0
 
+	// ANSI color codes
+	greenOn := "\\u001b[32m"  // Green text
+	colorOff := "\\u001b[0m"  // Reset color
+
 	for _, msg := range session.GetMessages() {
 		if msg.Role == "developer" {
-			// User message - show prompt and type
-			prompt := "> "
-			escapedPrompt := escapeJSON(prompt)
-			event := fmt.Sprintf("[%.6f, \"o\", \"%s\"]", currentTime, escapedPrompt)
+			// User message - show green prompt and type in green
+			prompt := greenOn + "> "
+			event := fmt.Sprintf("[%.6f, \"o\", \"%s\"]", currentTime, prompt)
 			buf.WriteString(event)
 			buf.WriteString("\n")
 			currentTime += 0.05
 
-			// Type each character
+			// Type each character in green
 			for _, char := range msg.Content {
 				var output string
 				if char == '\n' {
-					output = "\\r\\n> " // New line with prompt continuation
+					output = "\\r\\n" + greenOn + "> " // New line with green prompt
 					currentTime += 0.05
 				} else if char == '\r' {
 					continue
@@ -573,8 +576,8 @@ func generateSessionCast(path string, session SessionMessages, opts SessionRecor
 				currentTime += opts.TypingSpeed.Seconds()
 			}
 
-			// End of user input - add blank lines before agent response
-			event = fmt.Sprintf("[%.6f, \"o\", \"\\r\\n\\r\\n\\r\\n\"]", currentTime)
+			// End of user input - reset color and add blank lines
+			event = fmt.Sprintf("[%.6f, \"o\", \"%s\\r\\n\\r\\n\\r\\n\"]", currentTime, colorOff)
 			buf.WriteString(event)
 			buf.WriteString("\n")
 			currentTime += opts.MessageDelay.Seconds()
