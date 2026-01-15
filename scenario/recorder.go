@@ -573,8 +573,8 @@ func generateSessionCast(path string, session SessionMessages, opts SessionRecor
 				currentTime += opts.TypingSpeed.Seconds()
 			}
 
-			// End of user input
-			event = fmt.Sprintf("[%.6f, \"o\", \"\\r\\n\\r\\n\"]", currentTime)
+			// End of user input - add blank lines before agent response
+			event = fmt.Sprintf("[%.6f, \"o\", \"\\r\\n\\r\\n\\r\\n\"]", currentTime)
 			buf.WriteString(event)
 			buf.WriteString("\n")
 			currentTime += opts.MessageDelay.Seconds()
@@ -596,6 +596,10 @@ func generateSessionCast(path string, session SessionMessages, opts SessionRecor
 				}
 				currentTime += opts.LineDelay.Seconds()
 			}
+			// Add blank lines after agent response
+			event := fmt.Sprintf("[%.6f, \"o\", \"\\r\\n\\r\\n\"]", currentTime)
+			buf.WriteString(event)
+			buf.WriteString("\n")
 			currentTime += opts.MessageDelay.Seconds()
 		}
 	}
