@@ -10,6 +10,7 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
+	"github.com/lex00/wetwire-core-go/mcp"
 	"github.com/lex00/wetwire-core-go/providers"
 )
 
@@ -18,13 +19,34 @@ const DefaultModel = "claude-sonnet-4-20250514"
 
 // Provider implements the providers.Provider interface using the Anthropic API.
 type Provider struct {
-	client anthropic.Client
+	client    anthropic.Client
+	mcpClient *mcp.Client
+	mcpConfig *MCPConfig
 }
 
 // Config contains configuration for the Anthropic provider.
 type Config struct {
 	// APIKey for Anthropic (defaults to ANTHROPIC_API_KEY env var)
 	APIKey string
+
+	// MCP contains optional MCP server configuration for tool integration.
+	// If set, tools will be discovered from and executed via the MCP server.
+	MCP *MCPConfig
+}
+
+// MCPConfig contains configuration for MCP server integration.
+type MCPConfig struct {
+	// Command is the MCP server command to run
+	Command string
+
+	// Args are optional arguments for the MCP server
+	Args []string
+
+	// WorkDir is the working directory for the MCP server
+	WorkDir string
+
+	// Debug enables MCP debug logging
+	Debug bool
 }
 
 // New creates a new Anthropic provider.
@@ -40,8 +62,109 @@ func New(config Config) (*Provider, error) {
 	client := anthropic.NewClient(option.WithAPIKey(apiKey))
 
 	return &Provider{
-		client: client,
+		client:    client,
+		mcpConfig: config.MCP,
 	}, nil
+}
+
+// NewWithMCP creates a new Anthropic provider with MCP server integration.
+// The MCP server is started when the provider is created.
+func NewWithMCP(ctx context.Context, config Config) (*Provider, error) {
+	p, err := New(config)
+	if err != nil {
+		return nil, err
+	}
+
+	if config.MCP != nil {
+		mcpClient, err := mcp.NewClient(ctx, mcp.ClientConfig{
+			Command: config.MCP.Command,
+			Args:    config.MCP.Args,
+			WorkDir: config.MCP.WorkDir,
+			Debug:   config.MCP.Debug,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to connect to MCP server: %w", err)
+		}
+		p.mcpClient = mcpClient
+	}
+
+	return p, nil
+}
+
+// Close releases resources associated with the provider.
+// This should be called when the provider is no longer needed.
+func (p *Provider) Close() error {
+	if p.mcpClient != nil {
+		return p.mcpClient.Close()
+	}
+	return nil
+}
+
+// GetMCPTools returns tools discovered from the MCP server.
+// Returns nil if no MCP server is configured.
+func (p *Provider) GetMCPTools(ctx context.Context) ([]providers.Tool, error) {
+	if p.mcpClient == nil {
+		return nil, nil
+	}
+
+	mcpTools, err := p.mcpClient.ListTools(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list MCP tools: %w", err)
+	}
+
+	tools := make([]providers.Tool, 0, len(mcpTools))
+	for _, t := range mcpTools {
+		tool := providers.Tool{
+			Name:        t.Name,
+			Description: t.Description,
+		}
+
+		// Convert MCP input schema to provider schema
+		if t.InputSchema != nil {
+			if props, ok := t.InputSchema["properties"].(map[string]any); ok {
+				tool.InputSchema.Properties = props
+			}
+			if req, ok := t.InputSchema["required"].([]any); ok {
+				for _, r := range req {
+					if s, ok := r.(string); ok {
+						tool.InputSchema.Required = append(tool.InputSchema.Required, s)
+					}
+				}
+			}
+		}
+
+		tools = append(tools, tool)
+	}
+
+	return tools, nil
+}
+
+// CallMCPTool executes a tool via the MCP server.
+// Returns an error if no MCP server is configured.
+func (p *Provider) CallMCPTool(ctx context.Context, name string, arguments map[string]any) (string, bool, error) {
+	if p.mcpClient == nil {
+		return "", false, fmt.Errorf("no MCP server configured")
+	}
+
+	result, err := p.mcpClient.CallTool(ctx, name, arguments)
+	if err != nil {
+		return "", true, err
+	}
+
+	// Concatenate all text content blocks
+	var text strings.Builder
+	for _, block := range result.Content {
+		if block.Type == "text" {
+			text.WriteString(block.Text)
+		}
+	}
+
+	return text.String(), result.IsError, nil
+}
+
+// HasMCP returns true if the provider has MCP integration configured.
+func (p *Provider) HasMCP() bool {
+	return p.mcpClient != nil
 }
 
 // Name returns the provider name.

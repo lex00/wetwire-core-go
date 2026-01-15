@@ -1,6 +1,7 @@
 package anthropic
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
@@ -210,4 +211,44 @@ func TestConvertStopReason(t *testing.T) {
 
 func TestDefaultModel(t *testing.T) {
 	assert.Equal(t, "claude-sonnet-4-20250514", DefaultModel)
+}
+
+func TestHasMCPWithoutConfig(t *testing.T) {
+	p := &Provider{}
+	assert.False(t, p.HasMCP())
+}
+
+func TestCloseWithoutMCP(t *testing.T) {
+	p := &Provider{}
+	err := p.Close()
+	assert.NoError(t, err)
+}
+
+func TestNewWithMCPConfig(t *testing.T) {
+	p, err := New(Config{
+		APIKey: "test-key",
+		MCP: &MCPConfig{
+			Command: "test-mcp",
+			Args:    []string{"--arg"},
+			WorkDir: "/tmp",
+		},
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, p)
+	assert.NotNil(t, p.mcpConfig)
+	assert.Equal(t, "test-mcp", p.mcpConfig.Command)
+}
+
+func TestCallMCPToolWithoutClient(t *testing.T) {
+	p := &Provider{}
+	_, _, err := p.CallMCPTool(context.Background(), "test", nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no MCP server configured")
+}
+
+func TestGetMCPToolsWithoutClient(t *testing.T) {
+	p := &Provider{}
+	tools, err := p.GetMCPTools(context.Background())
+	assert.NoError(t, err)
+	assert.Nil(t, tools)
 }

@@ -8,6 +8,17 @@
   - Wraps `kiro.RunTest()` for non-interactive AI execution
   - Supports `CreateMessage` and `StreamMessage` methods
   - Closes #23
+- `mcp/client.go` MCP client for connecting to MCP servers
+  - `NewClient()` spawns MCP server process and initializes connection
+  - `ListTools()` discovers available tools from MCP server
+  - `CallTool()` executes tools via MCP server
+- MCP integration for Anthropic provider
+  - `MCPConfig` option in `anthropic.Config` for MCP server settings
+  - `NewWithMCP()` constructor that starts MCP server automatically
+  - `GetMCPTools()` returns tools discovered from MCP server
+  - `CallMCPTool()` executes tools via MCP server
+  - `HasMCP()` checks if MCP is configured
+  - Closes #29
 
 ## [1.2.0] - 2026-01-10
 
