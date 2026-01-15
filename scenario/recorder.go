@@ -171,6 +171,11 @@ func (r *Recorder) Record(fn func() error) error {
 		return fmt.Errorf("failed to export SVG: %w: %s", err, output)
 	}
 
+	// Patch SVG to not loop (play once and stop at end)
+	if err := patchSVGNoLoop(svgPath); err != nil {
+		return fmt.Errorf("failed to patch SVG: %w", err)
+	}
+
 	// Clean up intermediate cast file
 	r.Cleanup()
 
@@ -305,6 +310,27 @@ func escapeJSON(s string) string {
 	s = strings.ReplaceAll(s, "\r", "\\r")
 	s = strings.ReplaceAll(s, "\t", "\\t")
 	return s
+}
+
+// patchSVGNoLoop modifies the SVG to play once and stop at the final frame.
+func patchSVGNoLoop(svgPath string) error {
+	content, err := os.ReadFile(svgPath)
+	if err != nil {
+		return err
+	}
+
+	svg := string(content)
+
+	// Change from infinite loop to play once
+	svg = strings.Replace(svg, "animation-iteration-count:infinite", "animation-iteration-count:1", 1)
+
+	// Add fill-mode to keep final frame visible (insert after iteration-count)
+	svg = strings.Replace(svg,
+		"animation-iteration-count:1;",
+		"animation-iteration-count:1;animation-fill-mode:forwards;",
+		1)
+
+	return os.WriteFile(svgPath, []byte(svg), 0644)
 }
 
 // ensureOutputDir creates the output directory if it doesn't exist.

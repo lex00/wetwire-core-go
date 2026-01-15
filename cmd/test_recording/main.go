@@ -27,10 +27,10 @@ func main() {
 	err = scenario.RunWithRecording("aws_gitlab_demo", scenario.RecordOptions{
 		Enabled:       true,
 		OutputDir:     outputDir,
-		TermWidth:     80,
-		TermHeight:    40, // Taller to fit more content
+		TermWidth:     64,  // ~800px wide
+		TermHeight:    24,  // ~600px tall
 		LineDelay:     300 * time.Millisecond,
-		TypingSpeed:   30 * time.Millisecond, // Faster typing
+		TypingSpeed:   20 * time.Millisecond, // Fast typing
 		ResponseDelay: 500 * time.Millisecond,
 		UserPrompt:    string(promptContent), // The actual scenario prompt
 	}, func() error {
