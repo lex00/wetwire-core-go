@@ -85,10 +85,28 @@ func NewRecorder(config RecorderConfig) *Recorder {
 	return &Recorder{config: config}
 }
 
+// findTermsvg returns the path to termsvg, checking common locations.
+func findTermsvg() string {
+	// First check PATH
+	if path, err := exec.LookPath("termsvg"); err == nil {
+		return path
+	}
+
+	// Check ~/go/bin (common Go install location)
+	home, err := os.UserHomeDir()
+	if err == nil {
+		goBinPath := filepath.Join(home, "go", "bin", "termsvg")
+		if _, err := os.Stat(goBinPath); err == nil {
+			return goBinPath
+		}
+	}
+
+	return ""
+}
+
 // CanRecord returns true if termsvg is available on the system.
 func CanRecord() bool {
-	_, err := exec.LookPath("termsvg")
-	return err == nil
+	return findTermsvg() != ""
 }
 
 // OutputPath returns the path to the output SVG file.
@@ -149,7 +167,8 @@ func (r *Recorder) Record(fn func() error) error {
 	}
 
 	// Export to SVG using termsvg
-	exportCmd := exec.Command("termsvg", "export", castPath, "-o", svgPath)
+	termsvgPath := findTermsvg()
+	exportCmd := exec.Command(termsvgPath, "export", castPath, "-o", svgPath)
 	if output, err := exportCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to export SVG: %w: %s", err, output)
 	}
