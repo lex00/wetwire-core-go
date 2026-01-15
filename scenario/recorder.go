@@ -234,13 +234,23 @@ func (r *Recorder) generateCastFile(path string, output string, _ time.Duration)
 	if strings.TrimSpace(userPrompt) != "" {
 		// Type each character
 		for _, char := range userPrompt {
-			escapedChar := escapeJSON(string(char))
-			event := fmt.Sprintf("[%.6f, \"o\", \"%s\"]", currentTime, escapedChar)
+			var output string
+			if char == '\n' {
+				// Newline needs carriage return to go back to left margin
+				output = "\\r\\n"
+				currentTime += 0.05 // Small pause at end of line
+			} else if char == '\r' {
+				// Skip carriage returns (we handle newlines above)
+				continue
+			} else {
+				output = escapeJSON(string(char))
+			}
+			event := fmt.Sprintf("[%.6f, \"o\", \"%s\"]", currentTime, output)
 			buf.WriteString(event)
 			buf.WriteString("\n")
 			currentTime += typingSpeed.Seconds()
 		}
-		// Add newline after user finishes typing
+		// Add final newline after user finishes typing
 		event := fmt.Sprintf("[%.6f, \"o\", \"\\r\\n\"]", currentTime)
 		buf.WriteString(event)
 		buf.WriteString("\n")
