@@ -139,4 +139,9 @@ Captured sessions can be recorded as animated SVGs. See [RECORDING.md](RECORDING
 
 ## Example
 
-See `examples/aws_gitlab/` for a complete multi-domain scenario.
+See [`examples/aws_gitlab/`](../examples/aws_gitlab/) for a complete multi-domain scenario with:
+
+- AWS VPC, EKS, and RDS CloudFormation templates
+- GitLab CI/CD pipeline with deployment stages
+- Cross-domain validation ensuring pipeline references AWS outputs
+- Animated demo recording of the developer/agent conversation
