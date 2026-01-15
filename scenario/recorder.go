@@ -441,3 +441,164 @@ func RunWithRecording(name string, opts RecordOptions, fn func() error) error {
 	recorder := NewRecorder(config)
 	return recorder.Record(fn)
 }
+
+// SessionRecordOptions configures recording of a Session conversation.
+type SessionRecordOptions struct {
+	// OutputDir is where recordings are saved (default: ./recordings)
+	OutputDir string
+
+	// TermWidth is the terminal width in characters (default: 80)
+	TermWidth int
+
+	// TermHeight is the terminal height in characters (default: 30)
+	TermHeight int
+
+	// TypingSpeed is delay between characters for user messages (default: 25ms)
+	TypingSpeed time.Duration
+
+	// LineDelay is delay between lines for agent messages (default: 100ms)
+	LineDelay time.Duration
+
+	// MessageDelay is pause between conversation turns (default: 500ms)
+	MessageDelay time.Duration
+}
+
+// RecordSession records a conversation from session messages to SVG.
+// Developer messages are shown with typing simulation (user input).
+// Runner messages are shown line-by-line (agent output).
+func RecordSession(session SessionMessages, opts SessionRecordOptions) error {
+	if !CanRecord() {
+		return ErrTermsvgNotFound
+	}
+
+	// Apply defaults
+	if opts.OutputDir == "" {
+		opts.OutputDir = "./recordings"
+	}
+	if opts.TermWidth == 0 {
+		opts.TermWidth = 80
+	}
+	if opts.TermHeight == 0 {
+		opts.TermHeight = 30
+	}
+	if opts.TypingSpeed == 0 {
+		opts.TypingSpeed = 25 * time.Millisecond
+	}
+	if opts.LineDelay == 0 {
+		opts.LineDelay = 100 * time.Millisecond
+	}
+	if opts.MessageDelay == 0 {
+		opts.MessageDelay = 500 * time.Millisecond
+	}
+
+	// Ensure output dir exists
+	if err := os.MkdirAll(opts.OutputDir, 0755); err != nil {
+		return fmt.Errorf("creating output directory: %w", err)
+	}
+
+	castPath := filepath.Join(opts.OutputDir, session.Name()+".cast")
+	svgPath := filepath.Join(opts.OutputDir, session.Name()+".svg")
+
+	// Generate cast file from session messages
+	if err := generateSessionCast(castPath, session, opts); err != nil {
+		return fmt.Errorf("generating cast file: %w", err)
+	}
+
+	// Export to SVG
+	termsvgPath := findTermsvg()
+	exportCmd := exec.Command(termsvgPath, "export", castPath, "-o", svgPath)
+	if output, err := exportCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("exporting SVG: %w: %s", err, output)
+	}
+
+	// Patch SVG to not loop
+	if err := patchSVGNoLoop(svgPath); err != nil {
+		return fmt.Errorf("patching SVG: %w", err)
+	}
+
+	// Clean up cast file
+	_ = os.Remove(castPath)
+
+	return nil
+}
+
+// SessionMessages interface for accessing session conversation data.
+type SessionMessages interface {
+	Name() string
+	GetMessages() []SessionMessage
+}
+
+// SessionMessage represents a single message in a conversation.
+type SessionMessage struct {
+	Role    string // "developer" (user) or "runner" (agent)
+	Content string
+}
+
+// generateSessionCast creates an asciinema cast file from session messages.
+func generateSessionCast(path string, session SessionMessages, opts SessionRecordOptions) error {
+	var buf bytes.Buffer
+
+	// Write header
+	header := fmt.Sprintf(`{"version": 2, "width": %d, "height": %d, "timestamp": %d, "title": "%s"}`,
+		opts.TermWidth, opts.TermHeight, time.Now().Unix(), session.Name())
+	buf.WriteString(header)
+	buf.WriteString("\n")
+
+	currentTime := 0.0
+
+	for _, msg := range session.GetMessages() {
+		if msg.Role == "developer" {
+			// User message - show prompt and type
+			prompt := "> "
+			escapedPrompt := escapeJSON(prompt)
+			event := fmt.Sprintf("[%.6f, \"o\", \"%s\"]", currentTime, escapedPrompt)
+			buf.WriteString(event)
+			buf.WriteString("\n")
+			currentTime += 0.05
+
+			// Type each character
+			for _, char := range msg.Content {
+				var output string
+				if char == '\n' {
+					output = "\\r\\n> " // New line with prompt continuation
+					currentTime += 0.05
+				} else if char == '\r' {
+					continue
+				} else {
+					output = escapeJSON(string(char))
+				}
+				event := fmt.Sprintf("[%.6f, \"o\", \"%s\"]", currentTime, output)
+				buf.WriteString(event)
+				buf.WriteString("\n")
+				currentTime += opts.TypingSpeed.Seconds()
+			}
+
+			// End of user input
+			event = fmt.Sprintf("[%.6f, \"o\", \"\\r\\n\\r\\n\"]", currentTime)
+			buf.WriteString(event)
+			buf.WriteString("\n")
+			currentTime += opts.MessageDelay.Seconds()
+
+		} else if msg.Role == "runner" {
+			// Agent message - output line by line
+			lines := strings.Split(msg.Content, "\n")
+			for _, line := range lines {
+				if line == "" {
+					// Empty line
+					event := fmt.Sprintf("[%.6f, \"o\", \"\\r\\n\"]", currentTime)
+					buf.WriteString(event)
+					buf.WriteString("\n")
+				} else {
+					escapedLine := escapeJSON(line + "\r\n")
+					event := fmt.Sprintf("[%.6f, \"o\", \"%s\"]", currentTime, escapedLine)
+					buf.WriteString(event)
+					buf.WriteString("\n")
+				}
+				currentTime += opts.LineDelay.Seconds()
+			}
+			currentTime += opts.MessageDelay.Seconds()
+		}
+	}
+
+	return os.WriteFile(path, buf.Bytes(), 0644)
+}
