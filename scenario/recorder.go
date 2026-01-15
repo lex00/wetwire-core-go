@@ -15,6 +15,12 @@ import (
 // ErrTermsvgNotFound is returned when termsvg is not installed.
 var ErrTermsvgNotFound = errors.New("termsvg not found: install with 'go install github.com/mrmarble/termsvg/cmd/termsvg@latest'")
 
+// DefaultGreeting is the default greeting shown at the start of recordings.
+const DefaultGreeting = `$ wetwire scenario run %s
+
+Loading scenario...
+`
+
 // RecorderConfig configures the scenario recorder.
 type RecorderConfig struct {
 	// OutputDir is the directory where recordings are saved
@@ -25,6 +31,23 @@ type RecorderConfig struct {
 
 	// Format is the output format (default: svg)
 	Format string
+
+	// Greeting is shown at the start of the recording to provide context.
+	// Use %s as placeholder for scenario name. Empty string disables greeting.
+	// If not set, DefaultGreeting is used.
+	Greeting string
+
+	// GreetingDelay is the pause after greeting before showing output (default: 1s)
+	GreetingDelay time.Duration
+
+	// TermWidth is the terminal width in characters (default: 80)
+	TermWidth int
+
+	// TermHeight is the terminal height in characters (default: 24)
+	TermHeight int
+
+	// LineDelay is the minimum delay between output lines (default: 0.3s)
+	LineDelay time.Duration
 }
 
 // Recorder records scenario execution to SVG using termsvg.
@@ -119,11 +142,47 @@ func (r *Recorder) Record(fn func() error) error {
 func (r *Recorder) generateCastFile(path string, output string, duration time.Duration) error {
 	var buf bytes.Buffer
 
+	// Apply defaults for terminal dimensions
+	termWidth := r.config.TermWidth
+	if termWidth == 0 {
+		termWidth = 80
+	}
+	termHeight := r.config.TermHeight
+	if termHeight == 0 {
+		termHeight = 24
+	}
+
 	// Write header (asciinema v2 format)
-	header := fmt.Sprintf(`{"version": 2, "width": 120, "height": 40, "timestamp": %d, "title": "%s"}`,
-		time.Now().Unix(), r.config.ScenarioName)
+	header := fmt.Sprintf(`{"version": 2, "width": %d, "height": %d, "timestamp": %d, "title": "%s"}`,
+		termWidth, termHeight, time.Now().Unix(), r.config.ScenarioName)
 	buf.WriteString(header)
 	buf.WriteString("\n")
+
+	currentTime := 0.0
+
+	// Add greeting if configured
+	greeting := r.config.Greeting
+	if greeting == "" {
+		greeting = fmt.Sprintf(DefaultGreeting, r.config.ScenarioName)
+	}
+
+	greetingDelay := r.config.GreetingDelay
+	if greetingDelay == 0 {
+		greetingDelay = time.Second
+	}
+
+	// Write greeting lines with typing effect
+	greetingLines := strings.Split(greeting, "\n")
+	for _, line := range greetingLines {
+		escapedLine := escapeJSON(line + "\r\n")
+		event := fmt.Sprintf("[%.6f, \"o\", \"%s\"]", currentTime, escapedLine)
+		buf.WriteString(event)
+		buf.WriteString("\n")
+		currentTime += 0.05 // Fast typing for greeting
+	}
+
+	// Pause after greeting
+	currentTime += greetingDelay.Seconds()
 
 	// Write output lines with timing
 	lines := strings.Split(output, "\n")
@@ -141,11 +200,12 @@ func (r *Recorder) generateCastFile(path string, output string, duration time.Du
 		nonEmptyLines = []string{"(no output)"}
 	}
 
-	timePerLine := float64(duration.Seconds()) / float64(len(nonEmptyLines)+1)
-	if timePerLine < 0.01 {
-		timePerLine = 0.1 // Minimum delay between lines
+	// Apply line delay (default 0.3s)
+	lineDelay := r.config.LineDelay
+	if lineDelay == 0 {
+		lineDelay = 300 * time.Millisecond
 	}
-	currentTime := 0.0
+	timePerLine := lineDelay.Seconds()
 
 	for _, line := range nonEmptyLines {
 		// Escape the line for JSON
@@ -210,6 +270,23 @@ type RecordOptions struct {
 
 	// GracefulFallback if true, continues without recording if termsvg unavailable
 	GracefulFallback bool
+
+	// Greeting is shown at the start of the recording.
+	// Use %s as placeholder for scenario name.
+	// Leave empty to use DefaultGreeting, set to " " to disable.
+	Greeting string
+
+	// GreetingDelay is the pause after greeting (default: 1s)
+	GreetingDelay time.Duration
+
+	// TermWidth is the terminal width in characters (default: 80)
+	TermWidth int
+
+	// TermHeight is the terminal height in characters (default: 24)
+	TermHeight int
+
+	// LineDelay is the minimum delay between output lines (default: 0.3s)
+	LineDelay time.Duration
 }
 
 // RunWithRecording runs a scenario with optional recording.
@@ -232,8 +309,13 @@ func RunWithRecording(name string, opts RecordOptions, fn func() error) error {
 	}
 
 	config := RecorderConfig{
-		OutputDir:    opts.OutputDir,
-		ScenarioName: name,
+		OutputDir:     opts.OutputDir,
+		ScenarioName:  name,
+		Greeting:      opts.Greeting,
+		GreetingDelay: opts.GreetingDelay,
+		TermWidth:     opts.TermWidth,
+		TermHeight:    opts.TermHeight,
+		LineDelay:     opts.LineDelay,
 	}
 
 	recorder := NewRecorder(config)
