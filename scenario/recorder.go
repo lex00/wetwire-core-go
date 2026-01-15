@@ -15,20 +15,17 @@ import (
 // ErrTermsvgNotFound is returned when termsvg is not installed.
 var ErrTermsvgNotFound = errors.New("termsvg not found: install with 'go install github.com/mrmarble/termsvg/cmd/termsvg@latest'")
 
-// DefaultAgentGreeting is shown first, before the user types their request.
-const DefaultAgentGreeting = `How can I help you today?
-
-> `
-
-// DefaultUserPrompt is what the user types (with typing simulation).
-const DefaultUserPrompt = `Please run the %s scenario`
-
-// DefaultAgentResponse is shown after the user's prompt, before scenario output.
-const DefaultAgentResponse = `
-
-Running scenario %s...
+// DefaultAgentGreeting is shown first (the scenario header).
+const DefaultAgentGreeting = `wetwire scenario: %s
+================================
 
 `
+
+// DefaultUserPrompt is empty by default - the scenario output IS the user's prompts.
+const DefaultUserPrompt = ``
+
+// DefaultAgentResponse is empty by default - output follows directly.
+const DefaultAgentResponse = ``
 
 // RecorderConfig configures the scenario recorder.
 type RecorderConfig struct {
@@ -215,17 +212,17 @@ func (r *Recorder) generateCastFile(path string, output string, _ time.Duration)
 		lineDelay = 300 * time.Millisecond
 	}
 
-	// 1. Agent greeting (instant, shown all at once)
+	// 1. Agent greeting / header (instant, shown all at once)
 	agentGreeting := r.config.AgentGreeting
 	if agentGreeting == "" {
-		agentGreeting = DefaultAgentGreeting
+		agentGreeting = fmt.Sprintf(DefaultAgentGreeting, r.config.ScenarioName)
 	}
 	if strings.TrimSpace(agentGreeting) != "" {
 		escapedGreeting := escapeJSON(agentGreeting)
 		event := fmt.Sprintf("[%.6f, \"o\", \"%s\"]", currentTime, escapedGreeting)
 		buf.WriteString(event)
 		buf.WriteString("\n")
-		currentTime += 0.1 // Small pause after greeting
+		currentTime += 0.1 // Small pause after header
 	}
 
 	// 2. User prompt (typing simulation - character by character)
