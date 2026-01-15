@@ -19,6 +19,14 @@
   - `CallMCPTool()` executes tools via MCP server
   - `HasMCP()` checks if MCP is configured
   - Closes #29
+- `scenario/` package for multi-domain scenario definitions
+  - `ScenarioConfig` struct with domains, cross-domain relationships, validation
+  - `DomainSpec` for domain configuration (CLI, MCP tools, dependencies, outputs)
+  - `CrossDomainSpec` for relationships between domains
+  - `Load()` and `Parse()` for YAML scenario file loading
+  - `GetDomainOrder()` for topological sorting by dependencies
+  - `Validate()` for comprehensive scenario validation
+  - Closes #41
 
 ## [1.2.0] - 2026-01-10
 
