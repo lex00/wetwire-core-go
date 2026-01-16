@@ -44,8 +44,8 @@ func TestIntegration_FullScenarioWorkflow(t *testing.T) {
 		require.NoError(t, err, "should load scenario.yaml")
 
 		// Verify basic structure
-		assert.Equal(t, "aws_gitlab_deployment", config.Name)
-		assert.Contains(t, config.Description, "AWS infrastructure")
+		assert.Equal(t, "aws_gitlab_s3_deploy", config.Name)
+		assert.Contains(t, config.Description, "S3 bucket")
 
 		// Verify domains
 		require.Len(t, config.Domains, 2)
@@ -87,7 +87,7 @@ func TestIntegration_FullScenarioWorkflow(t *testing.T) {
 		output := buf.String()
 
 		// Should contain scenario name
-		assert.Contains(t, output, "aws_gitlab_deployment")
+		assert.Contains(t, output, "aws_gitlab_s3_deploy")
 
 		// Should contain domain steps in correct order
 		assert.Contains(t, output, "Step 1")
@@ -200,7 +200,9 @@ deploy:
 		// Verify prompt config
 		require.NotNil(t, config.Prompts)
 		assert.Equal(t, "prompt.md", config.Prompts.Default)
-		assert.Contains(t, config.Prompts.Variants, "minimal")
+		assert.Contains(t, config.Prompts.Variants, "beginner")
+		assert.Contains(t, config.Prompts.Variants, "expert")
+		assert.Contains(t, config.Prompts.Variants, "terse")
 
 		// Verify prompt file exists
 		promptPath := filepath.Join(scenarioDir, config.Prompts.Default)
@@ -208,7 +210,7 @@ deploy:
 		assert.NoError(t, err, "default prompt file should exist")
 
 		// Verify variant prompt exists
-		variantPath := filepath.Join(scenarioDir, config.Prompts.Variants["minimal"])
+		variantPath := filepath.Join(scenarioDir, config.Prompts.Variants["beginner"])
 		_, err = os.Stat(variantPath)
 		assert.NoError(t, err, "variant prompt file should exist")
 	})
@@ -371,7 +373,7 @@ func TestIntegration_RecordingWithTermsvg(t *testing.T) {
 		// Read SVG content to verify it contains scenario output
 		svgContent, err := os.ReadFile(svgPath)
 		require.NoError(t, err)
-		assert.Contains(t, string(svgContent), "aws_gitlab_deployment")
+		assert.Contains(t, string(svgContent), "aws_gitlab_s3_deploy")
 	})
 
 	t.Run("RecordToSVG convenience function", func(t *testing.T) {
