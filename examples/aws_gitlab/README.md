@@ -45,24 +45,37 @@ The scenario includes prompts for different developer personas:
 
 ## Running the Scenario
 
+This example supports two execution modes:
+
+1. **Claude Mode** (default) - Uses Claude Code CLI with built-in tools
+2. **Domain Mode** - Uses domain-specific MCP tools (wetwire-aws, wetwire-gitlab)
+
 ### Prerequisites
 
+**Claude Mode:**
 - Go 1.23+
 - [Claude Code CLI](https://github.com/anthropics/claude-code) installed and authenticated
+
+**Domain Mode:**
+- Go 1.23+
+- [Claude Code CLI](https://github.com/anthropics/claude-code) installed and authenticated
+- `wetwire-aws` and `wetwire-gitlab` CLIs installed:
+  ```bash
+  go install github.com/lex00/wetwire-aws-go/cmd/wetwire-aws@latest
+  go install github.com/lex00/wetwire-gitlab-go/cmd/wetwire-gitlab@latest
+  ```
 
 ### Quick Start
 
 ```bash
 cd examples/aws_gitlab
 
-# Run single persona (default: intermediate)
+# Claude Mode (default) - uses Claude Code CLI
 go run . --persona intermediate --verbose
-
-# Run all 5 personas in parallel
 go run . --all
 
-# Specify output directory
-go run . --all --output ./my-results
+# Domain Mode - uses wetwire domain MCP tools via Claude Code
+go run . --domain-mode --persona intermediate --verbose
 ```
 
 ### CLI Options
@@ -70,9 +83,21 @@ go run . --all --output ./my-results
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--persona` | `intermediate` | Persona to run (beginner, intermediate, expert, terse, verbose) |
-| `--all` | false | Run all 5 personas in parallel |
+| `--all` | false | Run all 5 personas in parallel (Claude mode only) |
 | `--verbose` | false | Show streaming output |
 | `--output` | `./results` | Output directory for results |
+| `--domain-mode` | false | Use domain MCP tools via Claude Code |
+
+### Domain Mode
+
+Domain mode uses the actual wetwire domain tools to generate infrastructure:
+
+1. Starts MCP servers for each domain (wetwire-aws, wetwire-gitlab)
+2. Agent calls domain tools: `aws.wetwire_init`, `aws.wetwire_lint`, `aws.wetwire_build`
+3. Agent writes **Go code** using wetwire patterns (typed structs, direct references)
+4. Domain tools lint and build the final output
+
+This mode demonstrates the full wetwire workflow rather than generating raw YAML.
 
 ### Results
 

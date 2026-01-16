@@ -249,8 +249,8 @@ func (p *Provider) buildArgs(req providers.MessageRequest, prompt string) []stri
 		args = append(args, "--permission-mode", p.config.PermissionMode)
 	}
 
-	// Add prompt as positional argument
-	args = append(args, prompt)
+	// Add -- separator and prompt as positional argument
+	args = append(args, "--", prompt)
 
 	return args
 }
@@ -292,8 +292,8 @@ func (p *Provider) buildStreamArgs(req providers.MessageRequest, prompt string) 
 		args = append(args, "--permission-mode", p.config.PermissionMode)
 	}
 
-	// Add prompt as positional argument
-	args = append(args, prompt)
+	// Add -- separator and prompt as positional argument
+	args = append(args, "--", prompt)
 
 	return args
 }
