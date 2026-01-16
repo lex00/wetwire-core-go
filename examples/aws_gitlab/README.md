@@ -43,7 +43,28 @@ The scenario includes prompts for different developer personas:
 
 ## Running the Scenario
 
-### Load and Validate
+### Quick Start (No API Key Required)
+
+Run the scenario using Claude Code as the AI backend:
+
+```bash
+# Run all 6 personas and save results
+go run ./cmd/run_scenario ./examples/aws_gitlab --all ./examples/aws_gitlab/results
+
+# Run single persona
+go run ./cmd/run_scenario ./examples/aws_gitlab expert ./output
+```
+
+Results are saved per persona with RESULTS.md containing:
+- Claude's response
+- Generated CloudFormation template
+- Generated GitLab CI pipeline
+
+See `results/SUMMARY.md` for a comparison table across all personas.
+
+### Programmatic Usage
+
+#### Load and Validate
 
 ```go
 import "github.com/lex00/wetwire-core-go/scenario"
@@ -59,7 +80,7 @@ if !result.IsValid() {
 }
 ```
 
-### Load a Specific Persona
+#### Load a Specific Persona
 
 ```go
 config, _ := scenario.Load("./examples/aws_gitlab")
@@ -71,7 +92,27 @@ prompt, _ := config.GetPrompt("beginner")
 prompt, _ := config.GetPrompt("expert")
 ```
 
-### Execute with Unified Agent
+#### Execute with Claude Provider (No API Key)
+
+```go
+import (
+    "github.com/lex00/wetwire-core-go/providers"
+    "github.com/lex00/wetwire-core-go/providers/claude"
+)
+
+provider, _ := claude.New(claude.Config{
+    WorkDir:      "/path/to/output",
+    SystemPrompt: "You are an infrastructure code generator...",
+})
+
+resp, _ := provider.CreateMessage(ctx, providers.MessageRequest{
+    Messages: []providers.Message{
+        providers.NewUserMessage(scenarioInstructions),
+    },
+})
+```
+
+#### Execute with Anthropic Provider (Requires API Key)
 
 ```go
 import (

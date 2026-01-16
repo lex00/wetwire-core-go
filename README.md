@@ -14,7 +14,7 @@ wetwire-core-go provides the AI agent framework used by wetwire domain packages 
 
 - **agents** - Unified Agent architecture with MCP tool integration
 - **mcp** - MCP server for Claude Code integration with standard tool definitions
-- **providers** - AI provider abstraction (Anthropic API, Kiro/Claude Code)
+- **providers** - AI provider abstraction (Anthropic API, Claude Code, Kiro)
 - **personas** - Developer persona definitions (Beginner, Intermediate, Expert, Terse, Verbose)
 - **scoring** - 5-dimension evaluation rubric (0-15 scale)
 - **results** - Session tracking and RESULTS.md generation
@@ -96,14 +96,18 @@ Same code works with different AI backends:
 import (
     "github.com/lex00/wetwire-core-go/providers"
     "github.com/lex00/wetwire-core-go/providers/anthropic"
-    "github.com/lex00/wetwire-core-go/providers/kiro"
+    "github.com/lex00/wetwire-core-go/providers/claude"
 )
 
 var provider providers.Provider
 
 if useClaudeCode {
-    provider, _ = kiro.New(kiro.Config{...})
+    // No API key needed - uses Claude Code CLI
+    provider, _ = claude.New(claude.Config{
+        SystemPrompt: "You are an infrastructure generator...",
+    })
 } else {
+    // Direct API access
     provider, _ = anthropic.New(anthropic.Config{})
 }
 
@@ -117,8 +121,35 @@ resp, _ := provider.CreateMessage(ctx, req)
 |---------|-------------|
 | [unified_agent](examples/unified_agent/) | Unified Agent with MCP tools (recommended pattern) |
 | [mcp_server](examples/mcp_server/) | MCP server for Claude Code integration |
-| [kiro_provider](examples/kiro_provider/) | Using Kiro provider with Claude Code |
+| [claude_provider](examples/claude_provider/) | Using Claude Code as AI backend (no API key) |
+| [kiro_provider](examples/kiro_provider/) | Using Kiro provider (legacy) |
 | [aws_gitlab](examples/aws_gitlab/) | Multi-domain scenario example |
+
+### Running Scenarios
+
+Run scenarios with all personas using Claude Code (no API key needed):
+
+```bash
+# Run all 6 personas and save results
+go run ./cmd/run_scenario ./examples/aws_gitlab --all ./output
+
+# Run single persona
+go run ./cmd/run_scenario ./examples/aws_gitlab expert ./output
+```
+
+Results are organized by persona:
+```
+output/
+├── SUMMARY.md           # Results table with all personas
+├── default/
+│   ├── RESULTS.md       # Response and generated files
+│   ├── cfn-templates/s3-bucket.yaml
+│   └── .gitlab-ci.yml
+├── beginner/
+├── expert/
+├── terse/
+└── verbose/
+```
 
 ## Package Reference
 
@@ -155,13 +186,19 @@ tools := server.GetTools()
 ### providers
 
 ```go
-// Anthropic (direct API)
+// Claude Code (no API key needed - recommended for local dev)
+provider, _ := claude.New(claude.Config{
+    SystemPrompt:  "You are an infrastructure generator...",
+    MCPConfigPath: "/path/to/mcp.json",  // Optional: MCP tools
+})
+
+// Anthropic (direct API - recommended for production)
 provider, _ := anthropic.New(anthropic.Config{APIKey: "..."})
 
-// Kiro (Claude Code backend)
+// Kiro (legacy - uses kiro-cli)
 provider, _ := kiro.New(kiro.Config{AgentName: "...", MCPCommand: "..."})
 
-// Both implement providers.Provider interface
+// All implement providers.Provider interface
 resp, _ := provider.CreateMessage(ctx, req)
 resp, _ := provider.StreamMessage(ctx, req, handler)
 ```
@@ -185,7 +222,8 @@ writer.Write(session, "./RESULTS.md")
 ## Documentation
 
 - [mcp/README.md](mcp/README.md) - MCP server and standard tools
-- [docs/KIRO_PROVIDER.md](docs/KIRO_PROVIDER.md) - Kiro provider for Claude Code
+- [docs/CLAUDE_PROVIDER.md](docs/CLAUDE_PROVIDER.md) - Claude Code provider (no API key)
+- [docs/KIRO_PROVIDER.md](docs/KIRO_PROVIDER.md) - Kiro provider (legacy)
 - [docs/SCENARIOS.md](docs/SCENARIOS.md) - Multi-domain scenario definitions
 - [docs/RECORDING.md](docs/RECORDING.md) - SVG recording of conversations
 - [docs/FAQ.md](docs/FAQ.md) - Frequently asked questions

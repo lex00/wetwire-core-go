@@ -1,14 +1,15 @@
 # Kiro Provider Example
 
-This example demonstrates using the Kiro provider, which delegates AI operations to Claude Code instead of making direct API calls.
+This example demonstrates using the Kiro provider, which delegates AI operations to Kiro CLI (Amazon Q Developer CLI) instead of making direct API calls.
 
 ## Overview
 
-The Kiro provider allows wetwire to use Claude Code as the AI backend. This is useful when:
+The Kiro provider allows wetwire to use Kiro CLI as the AI backend. This is useful when:
 
-- Users are already paying for Claude Code
-- You want to leverage Claude Code's MCP integration
-- You need Claude Code's extended context and capabilities
+- Enterprise environments where Kiro CLI is the approved agentic tool
+- Users want to leverage existing Kiro CLI installation and configuration
+- You want to use Kiro's MCP server integration for tool access
+- CI/CD pipelines where Kiro CLI is already available
 
 ## Prerequisites
 
@@ -50,7 +51,8 @@ if useKiro {
     provider, _ = kiro.New(kiro.Config{
         AgentName:   "wetwire-agent",
         AgentPrompt: "You are a helpful assistant.",
-        MCPCommand:  "wetwire-mcp",
+        MCPCommand:  "wetwire-aws",
+        MCPArgs:     []string{"mcp"},
     })
 } else {
     provider, _ = anthropic.New(anthropic.Config{})
@@ -64,11 +66,24 @@ resp, _ := provider.CreateMessage(ctx, req)
 
 ```go
 kiro.Config{
-    AgentName:   string  // Name for the kiro agent
-    AgentPrompt: string  // System prompt for the agent
-    MCPCommand:  string  // MCP server command to run
-    WorkDir:     string  // Working directory for the agent
+    AgentName:   string   // Name for the kiro agent
+    AgentPrompt: string   // System prompt for the agent
+    MCPCommand:  string   // MCP server binary name (e.g., "wetwire-aws")
+    MCPArgs:     []string // Args for MCP server (e.g., []string{"mcp"})
+    WorkDir:     string   // Working directory for the agent
 }
+```
+
+Example:
+
+```go
+provider, _ := kiro.New(kiro.Config{
+    AgentName:   "wetwire-aws-agent",
+    AgentPrompt: "You are an AWS infrastructure code generator.",
+    MCPCommand:  "wetwire-aws",
+    MCPArgs:     []string{"mcp"},
+    WorkDir:     "/path/to/project",
+})
 ```
 
 ## See Also

@@ -31,7 +31,8 @@ func main() {
 		AgentName: "wetwire-example-agent",
 		AgentPrompt: `You are a helpful infrastructure code assistant.
 Your job is to help users generate infrastructure code.`,
-		MCPCommand: "wetwire-aws-mcp", // Replace with your MCP server
+		MCPCommand: "wetwire-aws", // The MCP server binary name
+		MCPArgs:    []string{"mcp"}, // Subcommand to start MCP server
 		WorkDir:    ".",
 	})
 	if err != nil {
@@ -117,11 +118,12 @@ func demonstrateProviderSwitching() {
 	var err error
 
 	if useKiro {
-		fmt.Println("Using Kiro provider (Claude Code backend)")
+		fmt.Println("Using Kiro provider (Amazon Q Developer CLI backend)")
 		provider, err = kiro.New(kiro.Config{
 			AgentName:   "wetwire-agent",
 			AgentPrompt: "You are a helpful assistant.",
-			MCPCommand:  "wetwire-mcp",
+			MCPCommand:  "wetwire-aws",
+			MCPArgs:     []string{"mcp"},
 		})
 	} else {
 		fmt.Println("Using Anthropic provider (Direct API backend)")

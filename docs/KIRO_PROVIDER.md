@@ -2,7 +2,9 @@
 
 ## Overview
 
-The Kiro provider (`providers/kiro`) implements the `providers.Provider` interface for integration with Claude Code (kiro-cli). This enables wetwire agents to run using Claude Code as the AI backend instead of making direct Anthropic API calls.
+The Kiro provider (`providers/kiro`) implements the `providers.Provider` interface for integration with Kiro CLI (Amazon Q Developer CLI). This enables wetwire agents to run using Kiro as the AI backend instead of making direct Anthropic API calls.
+
+This is particularly valuable in enterprise environments where Kiro CLI may be the only approved agentic CLI tool.
 
 ## Architecture
 
@@ -277,19 +279,19 @@ Test coverage includes:
 | Feature | Anthropic Provider | Kiro Provider |
 |---------|-------------------|---------------|
 | **Communication** | HTTP API calls | Subprocess execution |
-| **Authentication** | ANTHROPIC_API_KEY | Uses Claude Code session |
+| **Authentication** | ANTHROPIC_API_KEY | Uses Kiro CLI session |
 | **Streaming** | True streaming | Simulated (full response) |
 | **Tool Execution** | Direct via API | Via MCP server |
-| **Use Case** | Production deployments | Local development, testing |
-| **Cost** | API usage charges | Free (uses existing Claude Code) |
+| **Use Case** | Production deployments | Enterprise, local dev |
+| **Cost** | API usage charges | Uses existing Kiro license |
 
 ## When to Use Kiro Provider
 
 Use the Kiro provider when:
 
-1. **Local development** - Testing agents without API charges
-2. **CI/CD pipelines** - If Claude Code is already available
-3. **User is paying for Claude Code** - Leverage existing subscription
+1. **Enterprise environments** - Kiro CLI is the approved/only agentic tool
+2. **Local development** - Testing agents without API charges
+3. **CI/CD pipelines** - If Kiro CLI is already available
 4. **MCP integration testing** - Testing MCP server implementations
 
 Use the Anthropic provider when:
