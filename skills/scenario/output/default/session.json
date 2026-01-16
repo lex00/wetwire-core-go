@@ -1,0 +1,35 @@
+{
+  "id": "session_20260115_194408",
+  "persona": "default",
+  "scenario": "execution_test",
+  "start_time": "2026-01-15T19:44:08.915745-07:00",
+  "end_time": "2026-01-15T19:44:08.915751-07:00",
+  "initial_prompt": "# Multi-Domain Scenario: execution_test\n\nTest scenario execution\n\n## Execution Plan\n\nExecute the following domains in order:\n\n1. **test** (using wetwire-test)\n   - Available MCP tools:\n     - `test_init` for init\n     - `test_write` for write\n\n## Validation Criteria\n\n**test:**\n- Resources: min 1\n\nPlease execute this scenario autonomously, using the MCP tools available to you.\n",
+  "messages": [
+    {
+      "role": "user",
+      "content": "# Multi-Domain Scenario: execution_test\n\nTest scenario execution\n\n## Execution Plan\n\nExecute the following domains in order:\n\n1. **test** (using wetwire-test)\n   - Available MCP tools:\n     - `test_init` for init\n     - `test_write` for write\n\n## Validation Criteria\n\n**test:**\n- Resources: min 1\n\nPlease execute this scenario autonomously, using the MCP tools available to you.\n",
+      "timestamp": "2026-01-15T19:44:08.915745-07:00"
+    },
+    {
+      "role": "runner",
+      "content": "I'll initialize the package",
+      "timestamp": "2026-01-15T19:44:08.915747-07:00",
+      "tool_calls": [
+        {
+          "name": "test_init",
+          "input": "{\"name\": \"test-pkg\"}",
+          "output": ""
+        }
+      ]
+    },
+    {
+      "role": "runner",
+      "content": "Package initialized, scenario complete",
+      "timestamp": "2026-01-15T19:44:08.915751-07:00"
+    }
+  ],
+  "questions": [],
+  "lint_cycles": [],
+  "generated_files": null
+}

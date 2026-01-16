@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"time"
 
+	"github.com/lex00/wetwire-core-go/agent/results"
 	"github.com/lex00/wetwire-core-go/mcp"
 	"github.com/lex00/wetwire-core-go/providers"
 )
@@ -16,6 +18,7 @@ type ScenarioAgent struct {
 	mcpServer *mcp.Server
 	output    io.Writer
 	model     string
+	session   *results.Session
 }
 
 // ScenarioAgentConfig configures the ScenarioAgent.
@@ -23,7 +26,8 @@ type ScenarioAgentConfig struct {
 	Provider  providers.Provider
 	MCPServer *mcp.Server
 	Output    io.Writer
-	Model     string // Optional, defaults to claude-sonnet-4-20250514
+	Model     string           // Optional, defaults to claude-sonnet-4-20250514
+	Session   *results.Session // Optional, for result tracking
 }
 
 // NewScenarioAgent creates a new ScenarioAgent.
@@ -43,7 +47,13 @@ func NewScenarioAgent(config ScenarioAgentConfig) *ScenarioAgent {
 		mcpServer: config.MCPServer,
 		output:    output,
 		model:     model,
+		session:   config.Session,
 	}
+}
+
+// Session returns the session for result tracking.
+func (a *ScenarioAgent) Session() *results.Session {
+	return a.session
 }
 
 // Run executes the agent with the given prompt.
@@ -63,6 +73,12 @@ You have access to MCP tools provided by domain packages. Use these tools to:
 Work autonomously to complete the scenario requirements. Do not ask questions - make reasonable decisions based on the scenario description and validation criteria.
 
 Follow the execution plan provided in the user prompt, respecting domain dependencies and validation requirements.`
+
+	// Track initial prompt in session
+	if a.session != nil {
+		a.session.InitialPrompt = prompt
+		a.session.AddMessage("user", prompt)
+	}
 
 	// Get MCP tools from the server
 	tools := a.getMCPTools()
@@ -94,6 +110,30 @@ Follow the execution plan provided in the user prompt, respecting domain depende
 
 		// Add assistant response to messages
 		messages = append(messages, providers.NewAssistantMessage(resp.Content))
+
+		// Track assistant response in session
+		if a.session != nil {
+			// Extract text content from response
+			var textContent string
+			var toolCalls []results.ToolCall
+			for _, block := range resp.Content {
+				if block.Type == "text" {
+					textContent += block.Text
+				} else if block.Type == "tool_use" {
+					toolCalls = append(toolCalls, results.ToolCall{
+						Name:  block.Name,
+						Input: string(block.Input),
+					})
+				}
+			}
+			msg := results.Message{
+				Role:      "runner",
+				Content:   textContent,
+				Timestamp: time.Now(),
+				ToolCalls: toolCalls,
+			}
+			a.session.Messages = append(a.session.Messages, msg)
+		}
 
 		// Check for stop reason
 		if resp.StopReason == providers.StopReasonEndTurn {
@@ -159,6 +199,16 @@ func (a *ScenarioAgent) executeMCPTool(ctx context.Context, name string, input j
 
 	// Log tool execution to output
 	fmt.Fprintf(a.output, "[Tool: %s] %s\n", name, result)
+
+	// Track generated files in session
+	if a.session != nil {
+		// Check if this is a write tool and track the file
+		if name == "wetwire_write" {
+			if path, ok := params["path"].(string); ok {
+				a.session.GeneratedFiles = append(a.session.GeneratedFiles, path)
+			}
+		}
+	}
 
 	return result, nil
 }

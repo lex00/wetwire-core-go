@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/lex00/wetwire-core-go/agent/results"
 	"github.com/lex00/wetwire-core-go/mcp"
 	"github.com/lex00/wetwire-core-go/providers"
 	scenarioPkg "github.com/lex00/wetwire-core-go/scenario"
@@ -19,6 +20,8 @@ type Skill struct {
 	output    io.Writer
 	provider  providers.Provider
 	mcpServer *mcp.Server
+	outputDir string // Directory for results output
+	persona   string // Persona name for results tracking
 }
 
 // New creates a new scenario skill.
@@ -28,7 +31,18 @@ func New(provider providers.Provider, mcpServer *mcp.Server) *Skill {
 		output:    os.Stdout,
 		provider:  provider,
 		mcpServer: mcpServer,
+		outputDir: "./output",
 	}
+}
+
+// SetOutputDir sets the output directory for results.
+func (s *Skill) SetOutputDir(dir string) {
+	s.outputDir = dir
+}
+
+// SetPersona sets the persona name for results tracking.
+func (s *Skill) SetPersona(persona string) {
+	s.persona = persona
 }
 
 // SetOutput sets the output writer for the skill.
@@ -143,11 +157,19 @@ func (s *Skill) executeScenario(ctx context.Context, config *scenarioPkg.Scenari
 		return fmt.Errorf("failed to build execution prompt: %w", err)
 	}
 
+	// Create session for results tracking
+	persona := s.persona
+	if persona == "" {
+		persona = "default"
+	}
+	session := results.NewSession(persona, config.Name)
+
 	// Create an agent that uses MCP tools
 	agent := NewScenarioAgent(ScenarioAgentConfig{
 		Provider:  s.provider,
 		MCPServer: s.mcpServer,
 		Output:    s.output,
+		Session:   session,
 	})
 
 	// Run the agent autonomously (no developer interaction)
@@ -155,12 +177,23 @@ func (s *Skill) executeScenario(ctx context.Context, config *scenarioPkg.Scenari
 		return fmt.Errorf("scenario execution failed: %w", err)
 	}
 
+	// Mark session complete
+	session.Complete()
+
 	// Validate results against scenario requirements
 	if err := s.validateResults(config); err != nil {
 		return fmt.Errorf("validation failed: %w", err)
 	}
 
-	fmt.Fprintln(s.output, "\nScenario completed successfully!")
+	// Write results
+	writer := results.NewWriter(s.outputDir)
+	if err := writer.Write(session); err != nil {
+		fmt.Fprintf(s.output, "Warning: failed to write results: %v\n", err)
+	} else {
+		fmt.Fprintf(s.output, "\nResults written to %s/%s/RESULTS.md\n", s.outputDir, persona)
+	}
+
+	fmt.Fprintln(s.output, "Scenario completed successfully!")
 	return nil
 }
 
