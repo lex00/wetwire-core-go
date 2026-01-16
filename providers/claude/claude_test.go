@@ -332,8 +332,8 @@ func TestWriteMCPConfig(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "mcp.json")
 
 	servers := map[string]MCPServerConfig{
-		"wetwire-aws": {
-			Command: "wetwire-aws-mcp",
+		"mock-cli-a": {
+			Command: "mock-cli-a-mcp",
 			Args:    []string{"--debug"},
 			Cwd:     "/workspace",
 		},
@@ -350,8 +350,8 @@ func TestWriteMCPConfig(t *testing.T) {
 	data, err := os.ReadFile(configPath)
 	require.NoError(t, err)
 
-	assert.Contains(t, string(data), "wetwire-aws")
-	assert.Contains(t, string(data), "wetwire-aws-mcp")
+	assert.Contains(t, string(data), "mock-cli-a")
+	assert.Contains(t, string(data), "mock-cli-a-mcp")
 	assert.Contains(t, string(data), "--debug")
 }
 

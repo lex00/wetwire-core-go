@@ -42,7 +42,7 @@ func TestValidate(t *testing.T) {
 		config := &ScenarioConfig{
 			Name: "test",
 			Domains: []DomainSpec{
-				{Name: "aws", CLI: "wetwire-aws"},
+				{Name: "domain-a", CLI: "mock-cli-a"},
 			},
 		}
 
@@ -53,7 +53,7 @@ func TestValidate(t *testing.T) {
 	t.Run("missing name", func(t *testing.T) {
 		config := &ScenarioConfig{
 			Domains: []DomainSpec{
-				{Name: "aws", CLI: "wetwire-aws"},
+				{Name: "domain-a", CLI: "mock-cli-a"},
 			},
 		}
 
@@ -76,7 +76,7 @@ func TestValidate(t *testing.T) {
 		config := &ScenarioConfig{
 			Name: "test",
 			Domains: []DomainSpec{
-				{CLI: "wetwire-aws"},
+				{CLI: "mock-cli-a"},
 			},
 		}
 
@@ -89,7 +89,7 @@ func TestValidate(t *testing.T) {
 		config := &ScenarioConfig{
 			Name: "test",
 			Domains: []DomainSpec{
-				{Name: "aws"},
+				{Name: "domain-a"},
 			},
 		}
 
@@ -102,8 +102,8 @@ func TestValidate(t *testing.T) {
 		config := &ScenarioConfig{
 			Name: "test",
 			Domains: []DomainSpec{
-				{Name: "aws", CLI: "wetwire-aws"},
-				{Name: "aws", CLI: "wetwire-aws-2"},
+				{Name: "domain-a", CLI: "mock-cli-a"},
+				{Name: "domain-a", CLI: "mock-cli-a-2"},
 			},
 		}
 
@@ -116,7 +116,7 @@ func TestValidate(t *testing.T) {
 		config := &ScenarioConfig{
 			Name: "test",
 			Domains: []DomainSpec{
-				{Name: "aws", CLI: "wetwire-aws", DependsOn: []string{"unknown"}},
+				{Name: "domain-a", CLI: "mock-cli-a", DependsOn: []string{"unknown"}},
 			},
 		}
 
@@ -129,7 +129,7 @@ func TestValidate(t *testing.T) {
 		config := &ScenarioConfig{
 			Name: "test",
 			Domains: []DomainSpec{
-				{Name: "aws", CLI: "wetwire-aws", DependsOn: []string{"aws"}},
+				{Name: "domain-a", CLI: "mock-cli-a", DependsOn: []string{"domain-a"}},
 			},
 		}
 
@@ -142,11 +142,11 @@ func TestValidate(t *testing.T) {
 		config := &ScenarioConfig{
 			Name: "test",
 			Domains: []DomainSpec{
-				{Name: "aws", CLI: "wetwire-aws"},
-				{Name: "gitlab", CLI: "wetwire-gitlab"},
+				{Name: "domain-a", CLI: "mock-cli-a"},
+				{Name: "domain-b", CLI: "mock-cli-b"},
 			},
 			CrossDomain: []CrossDomainSpec{
-				{To: "gitlab", Type: "artifact"},
+				{To: "domain-b", Type: "artifact"},
 			},
 		}
 
@@ -159,27 +159,27 @@ func TestValidate(t *testing.T) {
 		config := &ScenarioConfig{
 			Name: "test",
 			Domains: []DomainSpec{
-				{Name: "aws", CLI: "wetwire-aws"},
+				{Name: "domain-a", CLI: "mock-cli-a"},
 			},
 			CrossDomain: []CrossDomainSpec{
-				{From: "aws", To: "gitlab", Type: "artifact"},
+				{From: "domain-a", To: "domain-b", Type: "artifact"},
 			},
 		}
 
 		result := Validate(config)
 		assert.False(t, result.IsValid())
-		assert.Contains(t, result.Error(), "unknown domain: gitlab")
+		assert.Contains(t, result.Error(), "unknown domain: domain-b")
 	})
 
 	t.Run("cross-domain missing type", func(t *testing.T) {
 		config := &ScenarioConfig{
 			Name: "test",
 			Domains: []DomainSpec{
-				{Name: "aws", CLI: "wetwire-aws"},
-				{Name: "gitlab", CLI: "wetwire-gitlab"},
+				{Name: "domain-a", CLI: "mock-cli-a"},
+				{Name: "domain-b", CLI: "mock-cli-b"},
 			},
 			CrossDomain: []CrossDomainSpec{
-				{From: "aws", To: "gitlab"},
+				{From: "domain-a", To: "domain-b"},
 			},
 		}
 
@@ -208,7 +208,7 @@ func TestValidateRequired(t *testing.T) {
 		config := &ScenarioConfig{
 			Name: "test",
 			Domains: []DomainSpec{
-				{Name: "aws"},
+				{Name: "domain-a"},
 			},
 		}
 
@@ -218,7 +218,7 @@ func TestValidateRequired(t *testing.T) {
 
 	t.Run("missing name", func(t *testing.T) {
 		config := &ScenarioConfig{
-			Domains: []DomainSpec{{Name: "aws"}},
+			Domains: []DomainSpec{{Name: "domain-a"}},
 		}
 
 		err := ValidateRequired(config)

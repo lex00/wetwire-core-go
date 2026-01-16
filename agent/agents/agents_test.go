@@ -258,35 +258,35 @@ func TestNewRunnerAgent_RequiresDomain(t *testing.T) {
 }
 
 func TestNewRunnerAgent_CustomDomain(t *testing.T) {
-	honeycombDomain := DomainConfig{
-		Name:         "honeycomb",
-		CLICommand:   "wetwire-honeycomb",
-		SystemPrompt: "You are a Honeycomb query generator.",
-		OutputFormat: "Query JSON",
+	domainDConfig := DomainConfig{
+		Name:         "domain-d",
+		CLICommand:   "mock-cli-d",
+		SystemPrompt: "You are a domain-d resource generator.",
+		OutputFormat: "JSON",
 	}
 
 	config := RunnerConfig{
 		Provider: &mockProvider{},
 		WorkDir:  t.TempDir(),
-		Domain:   honeycombDomain,
+		Domain:   domainDConfig,
 	}
 
 	agent, err := NewRunnerAgent(config)
 	assert.NoError(t, err)
 
-	assert.Equal(t, "honeycomb", agent.domain.Name)
-	assert.Equal(t, "wetwire-honeycomb", agent.domain.CLICommand)
-	assert.Equal(t, "Query JSON", agent.domain.OutputFormat)
-	assert.Equal(t, "You are a Honeycomb query generator.", agent.domain.SystemPrompt)
+	assert.Equal(t, "domain-d", agent.domain.Name)
+	assert.Equal(t, "mock-cli-d", agent.domain.CLICommand)
+	assert.Equal(t, "JSON", agent.domain.OutputFormat)
+	assert.Equal(t, "You are a domain-d resource generator.", agent.domain.SystemPrompt)
 }
 
 func TestDomainConfig_ToolDescriptions(t *testing.T) {
 	// Verify the domain config is used in tool descriptions
 	domain := DomainConfig{
-		Name:         "k8s",
-		CLICommand:   "wetwire-k8s",
-		SystemPrompt: "K8s generator",
-		OutputFormat: "Kubernetes YAML",
+		Name:         "domain-c",
+		CLICommand:   "mock-cli-c",
+		SystemPrompt: "Domain C generator",
+		OutputFormat: "YAML",
 	}
 
 	r := &RunnerAgent{
@@ -309,10 +309,10 @@ func TestDomainConfig_ToolDescriptions(t *testing.T) {
 	}
 
 	assert.NotNil(t, lintTool)
-	assert.Contains(t, lintTool.Description, "wetwire-k8s")
+	assert.Contains(t, lintTool.Description, "mock-cli-c")
 
 	assert.NotNil(t, buildTool)
-	assert.Contains(t, buildTool.Description, "Kubernetes YAML")
+	assert.Contains(t, buildTool.Description, "YAML")
 }
 
 // mockProvider implements providers.Provider for testing

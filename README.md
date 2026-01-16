@@ -123,19 +123,8 @@ resp, _ := provider.CreateMessage(ctx, req)
 | [mcp_server](examples/mcp_server/) | MCP server for Claude Code integration |
 | [claude_provider](examples/claude_provider/) | Using Claude Code as AI backend (no API key) |
 | [kiro_provider](examples/kiro_provider/) | Using Kiro provider (legacy) |
-| [aws_gitlab](examples/aws_gitlab/) | Multi-domain scenario example |
 
 ### Running Scenarios
-
-Run scenarios with all personas using Claude Code (no API key needed):
-
-```bash
-# Run all 6 personas and save results
-go run ./cmd/run_scenario ./examples/aws_gitlab --all ./output
-
-# Run single persona
-go run ./cmd/run_scenario ./examples/aws_gitlab expert ./output
-```
 
 Results are organized by persona:
 ```

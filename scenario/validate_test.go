@@ -7,10 +7,52 @@ import (
 )
 
 func TestValidateStructure(t *testing.T) {
-	// Test with the aws_gitlab example scenario
-	result := ValidateStructure("../examples/aws_gitlab")
+	// Test with a valid scenario structure created in temp directory
+	tmpDir := t.TempDir()
+
+	if err := os.MkdirAll(filepath.Join(tmpDir, "prompts"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create valid YAML with minimal required fields
+	yaml := `name: test_scenario
+description: Test scenario for validation
+prompts:
+  default: prompt.md
+  variants:
+    beginner: prompts/beginner.md
+    intermediate: prompts/intermediate.md
+    expert: prompts/expert.md
+    terse: prompts/terse.md
+    verbose: prompts/verbose.md
+domains:
+  - name: domain-a
+    cli: mock-cli-a
+    outputs:
+      - output.yaml
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "scenario.yaml"), []byte(yaml), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "system_prompt.md"), []byte("Test system prompt"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "prompt.md"), []byte("Test default prompt"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte("results/\n*.svg\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, p := range RequiredPersonas {
+		if err := os.WriteFile(filepath.Join(tmpDir, "prompts", p+".md"), []byte("Test prompt for "+p), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	result := ValidateStructure(tmpDir)
 	if !result.IsValid() {
-		t.Errorf("aws_gitlab scenario should be valid, got errors:\n%s", result.Error())
+		t.Errorf("test scenario should be valid, got errors:\n%s", result.Error())
 	}
 }
 

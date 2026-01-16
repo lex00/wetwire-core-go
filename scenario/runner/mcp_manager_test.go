@@ -14,21 +14,21 @@ func TestParsePrefixedTool(t *testing.T) {
 		wantErr    bool
 	}{
 		{
-			name:       "valid aws tool",
-			prefixed:   "aws.wetwire_build",
-			wantDomain: "aws",
+			name:       "valid domain-a tool",
+			prefixed:   "domain-a.wetwire_build",
+			wantDomain: "domain-a",
 			wantTool:   "wetwire_build",
 		},
 		{
-			name:       "valid gitlab tool",
-			prefixed:   "gitlab.wetwire_lint",
-			wantDomain: "gitlab",
+			name:       "valid domain-b tool",
+			prefixed:   "domain-b.wetwire_lint",
+			wantDomain: "domain-b",
 			wantTool:   "wetwire_lint",
 		},
 		{
 			name:       "valid tool with underscore in name",
-			prefixed:   "aws.wetwire_init_package",
-			wantDomain: "aws",
+			prefixed:   "domain-a.wetwire_init_package",
+			wantDomain: "domain-a",
 			wantTool:   "wetwire_init_package",
 		},
 		{
@@ -43,7 +43,7 @@ func TestParsePrefixedTool(t *testing.T) {
 		},
 		{
 			name:     "empty tool",
-			prefixed: "aws.",
+			prefixed: "domain-a.",
 			wantErr:  true,
 		},
 		{
@@ -105,14 +105,14 @@ func TestMCPManager_NoClientsInitially(t *testing.T) {
 	}
 
 	// Check IsConnected returns false
-	if mgr.IsConnected("aws") {
-		t.Error("IsConnected(aws) should be false")
+	if mgr.IsConnected("domain-a") {
+		t.Error("IsConnected(domain-a) should be false")
 	}
 
 	// Check GetTools returns nil
-	tools := mgr.GetTools("aws")
+	tools := mgr.GetTools("domain-a")
 	if tools != nil {
-		t.Errorf("GetTools(aws) = %v, want nil", tools)
+		t.Errorf("GetTools(domain-a) = %v, want nil", tools)
 	}
 
 	// Check GetAllTools returns empty
@@ -126,7 +126,7 @@ func TestMCPManager_CallToolNotConnected(t *testing.T) {
 	mgr := NewMCPManager("/tmp/test", false)
 
 	// Calling tool on non-existent domain should error
-	_, err := mgr.CallTool(context.Background(), "aws", "wetwire_build", nil)
+	_, err := mgr.CallTool(context.Background(), "domain-a", "wetwire_build", nil)
 	if err == nil {
 		t.Error("CallTool on non-existent domain should error")
 	}
