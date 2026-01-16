@@ -48,7 +48,7 @@ func (m *MCPManager) Start(ctx context.Context, domains []scenario.DomainSpec) e
 		})
 		if err != nil {
 			// Clean up already started clients
-			m.closeAllLocked()
+			_ = m.closeAllLocked()
 			return fmt.Errorf("failed to start MCP server for domain %s: %w", domain.Name, err)
 		}
 
@@ -57,7 +57,7 @@ func (m *MCPManager) Start(ctx context.Context, domains []scenario.DomainSpec) e
 		// List available tools
 		tools, err := client.ListTools(ctx)
 		if err != nil {
-			m.closeAllLocked()
+			_ = m.closeAllLocked()
 			return fmt.Errorf("failed to list tools for domain %s: %w", domain.Name, err)
 		}
 		m.tools[domain.Name] = tools

@@ -129,7 +129,7 @@ func (r *DomainRunner) Run(ctx context.Context, userPrompt string) (*DomainRunRe
 		},
 	}, func(text string) {
 		if r.verbose {
-			fmt.Fprint(r.output, text)
+			_, _ = fmt.Fprint(r.output, text)
 		}
 		result.Response += text
 	})

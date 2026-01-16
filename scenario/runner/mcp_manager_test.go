@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"testing"
 )
 
@@ -125,7 +126,7 @@ func TestMCPManager_CallToolNotConnected(t *testing.T) {
 	mgr := NewMCPManager("/tmp/test", false)
 
 	// Calling tool on non-existent domain should error
-	_, err := mgr.CallTool(nil, "aws", "wetwire_build", nil)
+	_, err := mgr.CallTool(context.Background(), "aws", "wetwire_build", nil)
 	if err == nil {
 		t.Error("CallTool on non-existent domain should error")
 	}
