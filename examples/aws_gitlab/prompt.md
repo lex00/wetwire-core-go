@@ -1,27 +1,25 @@
-# AWS + GitLab Infrastructure Deployment
+# S3 Bucket with GitLab Deployment
 
-Generate a complete AWS infrastructure with GitLab CI/CD pipeline.
+Create an S3 bucket using CloudFormation and a GitLab CI/CD pipeline to deploy it.
 
 ## AWS Requirements
 
-Create CloudFormation templates for:
-1. **VPC** - Multi-AZ VPC with public and private subnets
-2. **EKS Cluster** - Managed Kubernetes cluster in the VPC
-3. **RDS Database** - PostgreSQL database in private subnets
+Create a CloudFormation template for an S3 bucket with:
+- Versioning enabled
+- Server-side encryption (AES256)
+- Block public access
 
-Each stack should export its key outputs for cross-stack references.
+Export the bucket name and ARN as stack outputs.
 
 ## GitLab Requirements
 
-Create a GitLab CI/CD pipeline that:
-1. Validates CloudFormation templates
-2. Deploys stacks in dependency order (VPC → EKS → RDS)
-3. Runs integration tests after deployment
-4. Supports manual approval for production
+Create a `.gitlab-ci.yml` pipeline that:
+1. Validates the CloudFormation template
+2. Deploys the stack to AWS
+3. Outputs the deployed bucket name
 
 ## Cross-Domain Integration
 
-The GitLab pipeline must reference AWS outputs:
-- `${aws.vpc.outputs.vpc_id}` - VPC ID for EKS and RDS
-- `${aws.eks.outputs.cluster_name}` - Cluster name for kubectl config
-- `${aws.rds.outputs.endpoint}` - Database endpoint for app config
+The GitLab pipeline should reference the AWS outputs:
+- `${aws.s3.outputs.bucket_name}` - Bucket name for verification
+- `${aws.s3.outputs.bucket_arn}` - Bucket ARN for IAM policies

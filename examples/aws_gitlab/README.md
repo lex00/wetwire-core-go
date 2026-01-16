@@ -1,26 +1,16 @@
 # AWS + GitLab Example Scenario
 
-This example demonstrates a multi-domain scenario that generates AWS infrastructure alongside a GitLab CI/CD pipeline.
-
-## Demo Recording
-
-![Demo](recordings/aws_gitlab_demo.svg)
-
-The animated recording shows a developer/agent conversation creating AWS infrastructure and a GitLab pipeline.
+This example demonstrates a multi-domain scenario that generates an S3 bucket CloudFormation template alongside a GitLab CI/CD pipeline for deployment.
 
 ## Overview
 
 The scenario creates:
 
 **AWS (CloudFormation)**
-- VPC with public/private subnets across multiple AZs
-- EKS managed Kubernetes cluster
-- RDS PostgreSQL database
+- S3 bucket with versioning, encryption, and private access
 
 **GitLab (CI/CD)**
-- Pipeline that deploys AWS stacks in dependency order
-- Integration tests and manual approval stages
-- References to AWS stack outputs
+- Pipeline that validates and deploys the CloudFormation stack
 
 ## Files
 
@@ -30,10 +20,26 @@ aws_gitlab/
 ├── scenario.yaml       # Scenario definition
 ├── prompt.md           # Default user prompt
 ├── prompts/
-│   └── minimal.md      # Minimal variant
+│   ├── beginner.md     # Detailed explanations for newcomers
+│   ├── intermediate.md # Standard instructions
+│   ├── expert.md       # Brief, assumes knowledge
+│   ├── terse.md        # Minimal words
+│   └── verbose.md      # Highly detailed requirements
 └── recordings/
     └── aws_gitlab_demo.svg  # Animated demo
 ```
+
+## Personas
+
+The scenario includes prompts for different developer personas:
+
+| Persona | Description |
+|---------|-------------|
+| `beginner` | New to AWS/GitLab, needs explanations |
+| `intermediate` | Knows the basics, wants clear structure |
+| `expert` | Experienced, prefers concise instructions |
+| `terse` | Minimal words, just the essentials |
+| `verbose` | Comprehensive requirements with context |
 
 ## Running the Scenario
 
@@ -53,55 +59,49 @@ if !result.IsValid() {
 }
 ```
 
-### Execute with Orchestrator
-
-```go
-import "github.com/lex00/wetwire-core-go/agent/orchestrator"
-
-orch := orchestrator.New(config, developer, runner)
-session, err := orch.Run(ctx)
-```
-
-The orchestrator handles:
-1. Domain ordering (AWS before GitLab due to dependency)
-2. Developer/Runner conversation coordination
-3. Cross-domain validation
-
-## Recording the Conversation
-
-After running the scenario, you can record the conversation as an animated SVG:
-
-```go
-import "github.com/lex00/wetwire-core-go/scenario"
-
-// Adapt your session to the SessionMessages interface
-adapter := &SessionAdapter{session: session}
-
-err := scenario.RecordSession(adapter, scenario.SessionRecordOptions{
-    OutputDir:  "./recordings",
-    TermWidth:  80,
-    TermHeight: 30,
-})
-// Creates: ./recordings/<session-name>.svg
-```
-
-The recording shows:
-- Developer messages with typing simulation (green text)
-- Runner responses appearing line-by-line (white text)
-- Black terminal background
-
-## Prompt Variants
-
-Use the `minimal` variant for simpler output:
+### Load a Specific Persona
 
 ```go
 config, _ := scenario.Load("./examples/aws_gitlab")
-prompt, _ := config.GetPrompt("minimal")
+
+// Load beginner prompt
+prompt, _ := config.GetPrompt("beginner")
+
+// Or load expert prompt
+prompt, _ := config.GetPrompt("expert")
+```
+
+### Execute with Unified Agent
+
+```go
+import (
+    "github.com/lex00/wetwire-core-go/agent/agents"
+    "github.com/lex00/wetwire-core-go/mcp"
+    "github.com/lex00/wetwire-core-go/providers/anthropic"
+)
+
+// Create MCP server with AWS/GitLab tools
+mcpServer := mcp.NewServer(mcp.Config{Name: "aws-gitlab"})
+mcp.RegisterStandardToolsWithDefaults(mcpServer, "aws", handlers)
+
+// Create provider
+provider, _ := anthropic.New(anthropic.Config{})
+
+// Create agent
+agent, _ := agents.NewAgent(agents.AgentConfig{
+    Provider:  provider,
+    MCPServer: agents.NewMCPServerAdapter(mcpServer),
+    SystemPrompt: systemPrompt,
+})
+
+// Run with chosen persona
+prompt, _ := config.GetPrompt("intermediate")
+agent.Run(ctx, prompt)
 ```
 
 ## Cross-Domain Validation
 
-The scenario validates that GitLab pipelines correctly reference AWS outputs:
+The scenario validates that the GitLab pipeline correctly references AWS outputs:
 
 ```yaml
 cross_domain:
@@ -110,12 +110,11 @@ cross_domain:
     type: artifact_reference
     validation:
       required_refs:
-        - "${aws.vpc.outputs.vpc_id}"
-        - "${aws.eks.outputs.cluster_name}"
-        - "${aws.rds.outputs.endpoint}"
+        - "${aws.s3.outputs.bucket_name}"
+        - "${aws.s3.outputs.bucket_arn}"
 ```
 
-This ensures the GitLab pipeline can't be generated without proper AWS stack references.
+This ensures the GitLab pipeline references the correct S3 bucket outputs.
 
 ## Expected Output
 
@@ -124,10 +123,11 @@ When complete, the scenario generates:
 ```
 output/
 ├── cfn-templates/
-│   ├── vpc.yaml
-│   ├── eks.yaml
-│   └── rds.yaml
-├── .gitlab-ci.yml
-└── deploy/
-    └── stages.yaml
+│   └── s3-bucket.yaml     # CloudFormation template
+└── .gitlab-ci.yml          # GitLab CI/CD pipeline
 ```
+
+## See Also
+
+- [unified_agent example](../unified_agent/) - Agent architecture pattern
+- [mcp_server example](../mcp_server/) - MCP server creation
