@@ -58,7 +58,7 @@ This example supports two execution modes:
 
 **Domain Mode:**
 - Go 1.23+
-- `ANTHROPIC_API_KEY` environment variable set
+- [Claude Code CLI](https://github.com/anthropics/claude-code) installed and authenticated
 - `wetwire-aws` and `wetwire-gitlab` CLIs installed:
   ```bash
   go install github.com/lex00/wetwire-aws-go/cmd/wetwire-aws@latest
@@ -74,8 +74,7 @@ cd examples/aws_gitlab
 go run . --persona intermediate --verbose
 go run . --all
 
-# Domain Mode - uses wetwire domain MCP tools
-export ANTHROPIC_API_KEY=your-key
+# Domain Mode - uses wetwire domain MCP tools via Claude Code
 go run . --domain-mode --persona intermediate --verbose
 ```
 
@@ -87,8 +86,7 @@ go run . --domain-mode --persona intermediate --verbose
 | `--all` | false | Run all 5 personas in parallel (Claude mode only) |
 | `--verbose` | false | Show streaming output |
 | `--output` | `./results` | Output directory for results |
-| `--domain-mode` | false | Use domain MCP tools instead of Claude Code |
-| `--debug` | false | Enable MCP debug logging (domain mode only) |
+| `--domain-mode` | false | Use domain MCP tools via Claude Code |
 
 ### Domain Mode
 

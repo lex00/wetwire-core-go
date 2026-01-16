@@ -32,8 +32,7 @@ func main() {
 		persona    = flag.String("persona", "intermediate", "Persona to run")
 		verbose    = flag.Bool("verbose", false, "Show streaming output")
 		outputDir  = flag.String("output", "./results", "Output directory")
-		domainMode = flag.Bool("domain-mode", false, "Use domain MCP tools (requires ANTHROPIC_API_KEY)")
-		debug      = flag.Bool("debug", false, "Enable MCP debug logging")
+		domainMode = flag.Bool("domain-mode", false, "Use domain MCP tools via Claude Code")
 	)
 	flag.Parse()
 
@@ -42,7 +41,7 @@ func main() {
 	fmt.Println()
 
 	if *domainMode {
-		runDomainMode(*persona, *verbose, *outputDir, *debug)
+		runDomainMode(*persona, *verbose, *outputDir, false)
 	} else {
 		runClaudeMode(*runAll, *persona, *verbose, *outputDir)
 	}
@@ -88,17 +87,11 @@ func runClaudeMode(runAll bool, persona string, verbose bool, outputDir string) 
 	}
 }
 
-// runDomainMode runs using domain MCP tools via Anthropic API.
-func runDomainMode(persona string, verbose bool, outputDir string, debug bool) {
-	fmt.Println("Mode: Domain MCP Tools")
+// runDomainMode runs using domain MCP tools via Claude Code CLI.
+func runDomainMode(persona string, verbose bool, outputDir string, _ bool) {
+	fmt.Println("Mode: Domain MCP Tools (via Claude Code)")
 	fmt.Printf("Persona: %s\n", persona)
 	fmt.Printf("Output: %s\n\n", outputDir)
-
-	// Check for API key
-	if os.Getenv("ANTHROPIC_API_KEY") == "" {
-		fmt.Fprintln(os.Stderr, "Error: ANTHROPIC_API_KEY environment variable required for domain mode")
-		os.Exit(1)
-	}
 
 	ctx := context.Background()
 
@@ -128,7 +121,6 @@ func runDomainMode(persona string, verbose bool, outputDir string, debug bool) {
 		WorkDir:        personaDir,
 		Output:         os.Stdout,
 		Verbose:        verbose,
-		Debug:          debug,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating domain runner: %v\n", err)
@@ -158,20 +150,6 @@ func runDomainMode(persona string, verbose bool, outputDir string, debug bool) {
 		status = "SUCCESS"
 	}
 	fmt.Printf("  %-12s %s (%s)\n", persona, status, duration.Round(time.Millisecond))
-
-	// Print tool call summary
-	if len(result.ToolCalls) > 0 {
-		fmt.Println()
-		fmt.Println("Tool Calls")
-		fmt.Println("----------")
-		for _, tc := range result.ToolCalls {
-			errStr := ""
-			if tc.IsError {
-				errStr = " [ERROR]"
-			}
-			fmt.Printf("  %s.%s%s\n", tc.Domain, tc.Tool, errStr)
-		}
-	}
 }
 
 // loadPrompt loads the prompt for the given persona.
