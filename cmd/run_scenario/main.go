@@ -7,6 +7,7 @@
 // Flags:
 //
 //	--all      Run all personas
+//	--verbose  Show streaming output from Claude
 //	--record   Generate SVG recordings (requires termsvg)
 //
 // Examples:
@@ -37,6 +38,7 @@ func main() {
 	outputDir := ""
 	runAll := false
 	generateRecordings := false
+	verbose := false
 
 	args := os.Args[1:]
 	for i := 0; i < len(args); i++ {
@@ -45,6 +47,8 @@ func main() {
 			runAll = true
 		} else if arg == "--record" {
 			generateRecordings = true
+		} else if arg == "--verbose" || arg == "-v" {
+			verbose = true
 		} else if arg == "--help" || arg == "-h" {
 			printUsage()
 			return
@@ -73,6 +77,7 @@ func main() {
 		ScenarioPath:       scenarioPath,
 		OutputDir:          outputDir,
 		GenerateRecordings: generateRecordings,
+		Verbose:            verbose,
 	}
 
 	if runAll {
@@ -117,15 +122,16 @@ func printUsage() {
 	fmt.Println(`Usage: run_scenario [scenario_path] [persona] [output_dir] [flags]
 
 Flags:
-  --all      Run all personas (beginner, intermediate, expert, terse, verbose)
-  --record   Generate SVG recordings (requires termsvg)
-  --help     Show this help
+  --all       Run all personas (beginner, intermediate, expert, terse, verbose)
+  --verbose   Show streaming output from Claude (recommended)
+  --record    Generate SVG recordings (requires termsvg)
+  --help      Show this help
 
 Examples:
-  run_scenario ./examples/aws_gitlab
-  run_scenario ./examples/aws_gitlab beginner
+  run_scenario ./examples/aws_gitlab --verbose
+  run_scenario ./examples/aws_gitlab beginner --verbose
   run_scenario ./examples/aws_gitlab expert ./results
-  run_scenario ./examples/aws_gitlab --all ./results
+  run_scenario ./examples/aws_gitlab --all --verbose ./results
   run_scenario ./examples/aws_gitlab --all --record ./results`)
 }
 

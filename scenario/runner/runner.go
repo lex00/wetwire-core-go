@@ -141,27 +141,44 @@ Use the Write tool to create files. Use mkdir via Bash if directories are needed
 		return result
 	}
 
-	// Execute scenario
+	// Execute scenario with streaming for progress visibility
 	start := time.Now()
-	resp, err := provider.CreateMessage(ctx, providers.MessageRequest{
+	var responseText strings.Builder
+
+	// Stream handler to show progress and capture response
+	streamHandler := func(text string) {
+		if cfg.Verbose {
+			fmt.Print(text)
+		}
+		responseText.WriteString(text)
+	}
+
+	resp, err := provider.StreamMessage(ctx, providers.MessageRequest{
 		Messages: []providers.Message{
 			providers.NewUserMessage(prompt),
 		},
-	})
+	}, streamHandler)
 	result.Duration = time.Since(start)
+
+	if cfg.Verbose {
+		fmt.Println() // newline after streaming
+	}
 
 	if err != nil {
 		return result
 	}
 
-	// Extract response text
-	var responseText strings.Builder
-	for _, block := range resp.Content {
-		if block.Type == "text" {
-			responseText.WriteString(block.Text)
+	// Use streamed text, or extract from response if empty
+	if responseText.Len() > 0 {
+		result.Response = responseText.String()
+	} else {
+		for _, block := range resp.Content {
+			if block.Type == "text" {
+				responseText.WriteString(block.Text)
+			}
 		}
+		result.Response = responseText.String()
 	}
-	result.Response = responseText.String()
 
 	// Find generated files
 	result.Files = findGeneratedFiles(absPersonaDir)

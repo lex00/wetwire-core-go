@@ -1,9 +1,4 @@
-I'm new to AWS and GitLab CI/CD. Please help me create:
-
-For AWS I need:
-
-1. A CloudFormation template that defines an S3 bucket
-2. A GitLab pipeline to validate and publish the template
+I need a CloudFormation template for managing an S3 bucket.
 
 - I want to be able to recover old versions of files
 - I want encryption (not sure how it works)
@@ -11,16 +6,13 @@ For AWS I need:
 
 Please explain what each part of the template does.
 
+I also need a GitLab pipeline to:
+1. Validate my CloudFormation template syntax is correct
+2. Publishe my template file to S3 so others can use it
+3. Create a versioned release
 
-For gitlab I need a pipeline that:
-1. Validates my CloudFormation template syntax is correct
-2. Publishes my template file to S3 so others can use it
-3. Creates a versioned release
-
-**Important**: The pipeline should just publish the template file itself - it should NOT actually create the S3 bucket resources. That happens later when someone uses the template.
+**Important**: Only publish the template to s3 so that it is reusable, no execution.
 
 ## Questions I have
 
-- How do I connect GitLab to AWS for publishing?
-- What's the difference between publishing a template vs deploying it?
-- How do I version my templates?
+- How do I get the right values into my GitLab pipeline for AWS publishing?

@@ -10,7 +10,7 @@ Shared agent infrastructure for wetwire domain packages.
 
 ## Overview
 
-wetwire-core-go provides the AI agent framework used by wetwire domain packages (like wetwire-honeycomb-go). It includes:
+wetwire-core-go provides the AI agent framework used by wetwire domain packages (like wetwire-aws-go). It includes:
 
 - **agents** - Unified Agent architecture with MCP tool integration
 - **mcp** - MCP server for Claude Code integration with standard tool definitions
