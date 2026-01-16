@@ -5,6 +5,12 @@
 *.so
 *.dylib
 
+# Command binaries (built from cmd/)
+claude_provider
+init_scenario
+run_scenario
+test_scenario_claude
+
 # Test binary, built with `go test -c`
 *.test
 
@@ -33,3 +39,6 @@ Thumbs.db
 # Environment files
 .env
 .env.local
+
+# Scenario outputs
+skills/scenario/output/
