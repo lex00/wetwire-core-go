@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "wetwire-gitlab": {
+      "command": "uvx",
+      "args": [
+        "wetwire-gitlab",
+        "mcp"
+      ]
+    }
+  }
+}

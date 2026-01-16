@@ -22,7 +22,11 @@ type Config struct {
 	// AgentPrompt is the system prompt for the agent (domain-specific instructions)
 	AgentPrompt string
 
-	// MCPCommand is the MCP server command to run (e.g., "wetwire-gitlab-mcp")
+	// MCPServerName is the name used for the MCP server in config (e.g., "wetwire-gitlab")
+	// If empty, defaults to MCPCommand
+	MCPServerName string
+
+	// MCPCommand is the MCP server command to run (e.g., "/path/to/wetwire-gitlab" or "go")
 	MCPCommand string
 
 	// MCPArgs are optional arguments for the MCP server
@@ -90,9 +94,15 @@ func GenerateMCPConfig(config Config) MCPConfig {
 	args := []string{config.MCPCommand}
 	args = append(args, config.MCPArgs...)
 
+	// Use MCPServerName if set, otherwise default to MCPCommand
+	serverName := config.MCPServerName
+	if serverName == "" {
+		serverName = config.MCPCommand
+	}
+
 	return MCPConfig{
 		MCPServers: map[string]MCPServerConfig{
-			config.MCPCommand: {
+			serverName: {
 				Command: "uvx",
 				Args:    args,
 			},
@@ -108,19 +118,25 @@ func GenerateAgentConfig(config Config) AgentConfig {
 		workDir, _ = os.Getwd()
 	}
 
+	// Use MCPServerName if set, otherwise default to MCPCommand
+	serverName := config.MCPServerName
+	if serverName == "" {
+		serverName = config.MCPCommand
+	}
+
 	return AgentConfig{
 		Name:   config.AgentName,
 		Prompt: config.AgentPrompt,
 		MCPServers: map[string]MCPServerConfig{
-			config.MCPCommand: {
+			serverName: {
 				Command: config.MCPCommand,
-				Args:    config.MCPArgs, // Don't prepend command - it's already in Command field
+				Args:    config.MCPArgs,
 				Cwd:     workDir,
 			},
 		},
 		// Tools array uses @server_name format to include all tools from that MCP server
 		// See: https://github.com/aws/amazon-q-developer-cli/issues/2640
-		Tools: []string{"@" + config.MCPCommand},
+		Tools: []string{"@" + serverName},
 	}
 }
 
