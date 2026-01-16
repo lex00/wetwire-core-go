@@ -135,6 +135,10 @@ func (p *Provider) StreamMessage(ctx context.Context, req providers.MessageReque
 		return nil, fmt.Errorf("failed to create stdout pipe: %w", err)
 	}
 
+	// Capture stderr for error messages
+	var stderrBuf strings.Builder
+	cmd.Stderr = &stderrBuf
+
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start claude: %w", err)
 	}
@@ -181,6 +185,11 @@ func (p *Provider) StreamMessage(ctx context.Context, req providers.MessageReque
 		// Check if context was cancelled
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
+		}
+		// Include stderr output in error message
+		stderrOutput := stderrBuf.String()
+		if stderrOutput != "" {
+			return nil, fmt.Errorf("claude execution failed: %w\nStderr: %s", err, stderrOutput)
 		}
 		return nil, fmt.Errorf("claude execution failed: %w", err)
 	}
