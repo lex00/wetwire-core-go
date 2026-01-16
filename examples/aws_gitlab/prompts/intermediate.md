@@ -1,6 +1,6 @@
-# S3 Bucket with GitLab Deployment (Intermediate)
+# S3 Bucket Template with GitLab Publishing (Intermediate)
 
-Create an S3 bucket with CloudFormation and a GitLab CI/CD pipeline for deployment.
+Create an S3 bucket CloudFormation template and a GitLab CI/CD pipeline to publish it.
 
 ## AWS CloudFormation
 
@@ -17,13 +17,14 @@ Use parameters for:
 
 Create `.gitlab-ci.yml` with stages:
 1. `validate` - Run `aws cloudformation validate-template`
-2. `deploy` - Run `aws cloudformation deploy`
-3. `verify` - Describe the stack and show outputs
+2. `publish` - Upload template to S3 templates bucket
+3. `release` - Tag with version, create GitLab release
 
-Use GitLab CI variables for AWS credentials (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`).
+The pipeline publishes the template file - it does NOT execute `cloudformation deploy`.
+
+Use GitLab CI variables for AWS credentials.
 
 ## Cross-Domain Integration
 
-The pipeline should reference CloudFormation outputs for verification:
-- `${aws.s3.outputs.bucket_name}`
-- `${aws.s3.outputs.bucket_arn}`
+Pipeline references:
+- `${aws.s3.outputs.bucket_name}` - Target bucket for template storage

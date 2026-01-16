@@ -1,16 +1,16 @@
 # AWS + GitLab Example Scenario
 
-This example demonstrates a multi-domain scenario that generates an S3 bucket CloudFormation template alongside a GitLab CI/CD pipeline for deployment.
+This example demonstrates a multi-domain scenario that generates an S3 bucket CloudFormation template alongside a GitLab CI/CD pipeline for publishing it.
 
 ## Overview
 
 The scenario creates:
 
 **AWS (CloudFormation)**
-- S3 bucket with versioning, encryption, and private access
+- S3 bucket template with versioning, encryption, and private access
 
 **GitLab (CI/CD)**
-- Pipeline that validates and deploys the CloudFormation stack
+- Pipeline that validates and publishes the template (does NOT execute it)
 
 ## Files
 
@@ -111,10 +111,9 @@ cross_domain:
     validation:
       required_refs:
         - "${aws.s3.outputs.bucket_name}"
-        - "${aws.s3.outputs.bucket_arn}"
 ```
 
-This ensures the GitLab pipeline references the correct S3 bucket outputs.
+This ensures the GitLab pipeline references the target S3 bucket for publishing templates.
 
 ## Expected Output
 
@@ -124,7 +123,7 @@ When complete, the scenario generates:
 output/
 ├── cfn-templates/
 │   └── s3-bucket.yaml     # CloudFormation template
-└── .gitlab-ci.yml          # GitLab CI/CD pipeline
+└── .gitlab-ci.yml          # GitLab pipeline (validate + publish)
 ```
 
 ## See Also

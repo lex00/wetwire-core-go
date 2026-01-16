@@ -1,6 +1,6 @@
-# S3 + GitLab Deploy (Expert)
+# S3 Template + GitLab Publish (Expert)
 
-S3 bucket via CFN with GitLab CI/CD.
+S3 bucket CFN template with GitLab pipeline for publishing (not execution).
 
 ## AWS
 
@@ -13,9 +13,9 @@ S3 bucket via CFN with GitLab CI/CD.
 
 `.gitlab-ci.yml`:
 - validate: `cfn validate-template`
-- deploy: `cfn deploy --no-fail-on-empty-changeset`
-- verify: describe-stacks
+- publish: `aws s3 cp` to templates bucket
+- release: git tag, GitLab release
 
-AWS creds via CI vars. Include rules for branch-based deployment.
+No `cloudformation deploy` - publish only.
 
-Cross-refs: `${aws.s3.outputs.bucket_name}`, `${aws.s3.outputs.bucket_arn}`
+Cross-ref: `${aws.s3.outputs.bucket_name}`

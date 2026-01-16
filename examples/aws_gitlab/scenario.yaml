@@ -37,7 +37,6 @@ cross_domain:
     validation:
       required_refs:
         - "${aws.s3.outputs.bucket_name}"
-        - "${aws.s3.outputs.bucket_arn}"
 
 validation:
   aws:

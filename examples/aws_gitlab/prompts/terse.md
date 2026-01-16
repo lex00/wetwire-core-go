@@ -2,6 +2,6 @@
 
 CFN template: S3 bucket, versioning, encryption, private.
 
-GitLab pipeline: validate, deploy, verify.
+GitLab pipeline: validate, publish to S3. No execution.
 
-Outputs: bucket_name, bucket_arn.
+Output: bucket_name.

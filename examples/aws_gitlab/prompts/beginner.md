@@ -1,13 +1,13 @@
-# S3 Bucket with GitLab Deployment (Beginner)
+# S3 Bucket Template with GitLab Publishing (Beginner)
 
 I'm new to AWS and GitLab CI/CD. Please help me create:
 
-1. An S3 bucket using CloudFormation
-2. A GitLab pipeline to deploy it
+1. A CloudFormation template that defines an S3 bucket
+2. A GitLab pipeline to validate and publish the template
 
 ## What I need for AWS
 
-I want to create an S3 bucket. I've heard that CloudFormation is the "infrastructure as code" way to do this on AWS.
+I want to create a CloudFormation template for an S3 bucket. This is the "infrastructure as code" approach where I define what I want in a YAML file.
 
 For the bucket, I'd like:
 - **Versioning** - So I can recover old versions of files
@@ -18,17 +18,15 @@ Please explain what each part of the template does.
 
 ## What I need for GitLab
 
-I want a `.gitlab-ci.yml` file that automatically deploys my CloudFormation template when I push code.
+I want a `.gitlab-ci.yml` file that:
+1. Validates my CloudFormation template syntax is correct
+2. Publishes the template file to S3 so others can use it
+3. Creates a versioned release
 
-The pipeline should:
-1. Check that my template is valid (I heard there's a validate command?)
-2. Deploy the stack to AWS
-3. Show me what got created
-
-I don't know much about GitLab CI stages, so please explain the structure.
+**Important**: The pipeline should just publish the template file itself - it should NOT actually create the S3 bucket resources. That happens later when someone uses the template.
 
 ## Questions I have
 
-- How do I connect GitLab to AWS? (I assume I need credentials?)
-- What's a "stack output" and why do I need it?
-- How do I know if the deployment worked?
+- How do I connect GitLab to AWS for publishing?
+- What's the difference between publishing a template vs deploying it?
+- How do I version my templates?
