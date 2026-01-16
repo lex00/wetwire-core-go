@@ -205,9 +205,8 @@ func TestOrchestrator_CalculateScore(t *testing.T) {
 		3,    // expected resources
 		3,    // actual resources
 		true, // lint passed
-		nil,  // no code issues
-		0,    // no cfn errors
-		0,    // no cfn warnings
+		0,    // no validation errors
+		0,    // no validation warnings
 	)
 
 	assert.NotNil(t, score)
@@ -217,7 +216,6 @@ func TestOrchestrator_CalculateScore(t *testing.T) {
 	// Check dimensions are populated
 	assert.Equal(t, scoring.Rating(3), score.Completeness.Rating) // All resources
 	assert.Equal(t, scoring.Rating(2), score.LintQuality.Rating)  // Passed after cycles
-	assert.Equal(t, scoring.Rating(3), score.CodeQuality.Rating)  // No issues
 	assert.Equal(t, scoring.Rating(3), score.OutputValidity.Rating)
 	assert.Equal(t, scoring.Rating(3), score.QuestionEfficiency.Rating) // 1 question is optimal
 
@@ -242,14 +240,12 @@ func TestOrchestrator_CalculateScore_Partial(t *testing.T) {
 		5,     // expected resources
 		3,     // actual resources (missing some)
 		false, // lint failed
-		[]string{"missing import", "unused variable"},
-		1, // cfn errors
-		2, // cfn warnings
+		1,     // validation errors
+		2,     // validation warnings
 	)
 
 	assert.Less(t, score.Completeness.Rating, scoring.Rating(3))
 	assert.Less(t, score.LintQuality.Rating, scoring.Rating(3))
-	assert.Less(t, score.CodeQuality.Rating, scoring.Rating(3))
 	assert.Less(t, score.OutputValidity.Rating, scoring.Rating(3))
 }
 

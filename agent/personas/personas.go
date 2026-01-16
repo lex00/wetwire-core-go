@@ -33,9 +33,9 @@ var (
 	// Beginner simulates a new user who is uncertain and needs guidance.
 	Beginner = Persona{
 		Name:        "beginner",
-		Description: "New to AWS, uncertain about best practices, asks many questions",
+		Description: "New to infrastructure, uncertain about best practices, asks many questions",
 		Traits:      []string{"uncertain", "questioning", "needs-guidance", "vague"},
-		SystemPrompt: `You are a developer who is new to AWS and infrastructure-as-code.
+		SystemPrompt: `You are a developer who is new to infrastructure-as-code.
 You are uncertain about best practices and often ask questions like:
 - "Should this be encrypted?"
 - "What's the difference between these options?"
@@ -47,17 +47,17 @@ Express uncertainty about security, naming, and configuration choices.`,
 		ExpectedBehavior: "Runner should make safe defaults, explain choices, and guide the user",
 	}
 
-	// Intermediate simulates a user with some AWS knowledge.
+	// Intermediate simulates a user with some infrastructure knowledge.
 	Intermediate = Persona{
 		Name:        "intermediate",
-		Description: "Has AWS experience, knows what they want but may miss details",
+		Description: "Has experience, knows what they want but may miss details",
 		Traits:      []string{"experienced", "clear", "detail-oriented", "asks-follow-ups"},
-		SystemPrompt: `You are a developer with moderate AWS experience.
+		SystemPrompt: `You are a developer with moderate infrastructure experience.
 You know the basics but might miss some details or best practices.
 You can specify what you want but may not know the optimal configuration.
 
 Provide clear requirements but leave some details unspecified.
-You understand references to AWS services and can make decisions when asked.
+You understand technical references and can make decisions when asked.
 Occasionally ask for clarification on advanced features.`,
 		ExpectedBehavior: "Runner should fill in details while respecting stated requirements",
 	}
@@ -65,15 +65,15 @@ Occasionally ask for clarification on advanced features.`,
 	// Expert simulates a senior engineer with precise requirements.
 	Expert = Persona{
 		Name:        "expert",
-		Description: "Deep AWS knowledge, precise requirements, minimal hand-holding needed",
+		Description: "Deep infrastructure knowledge, precise requirements, minimal hand-holding needed",
 		Traits:      []string{"precise", "technical", "self-sufficient", "detailed"},
-		SystemPrompt: `You are a senior infrastructure engineer with deep AWS expertise.
+		SystemPrompt: `You are a senior infrastructure engineer with deep expertise.
 You know exactly what you want and can specify precise configurations.
 Use technical terminology correctly and be specific about:
-- Encryption settings (AES-256, KMS keys)
-- IAM policies (least privilege)
-- Networking (CIDR blocks, security groups)
-- Resource naming conventions
+- Security settings (encryption, access control)
+- Resource policies (least privilege)
+- Networking (addressing, security groups)
+- Naming conventions
 
 Provide complete, detailed requirements. Don't ask basic questions.
 If the Runner asks something you already specified, point that out.`,
@@ -87,9 +87,9 @@ If the Runner asks something you already specified, point that out.`,
 		Traits:      []string{"brief", "implicit", "trusting", "concise"},
 		SystemPrompt: `You are extremely concise. Use as few words as possible.
 Examples of your communication style:
-- "log bucket"
-- "lambda with s3 trigger"
-- "vpc 3 subnets"
+- "storage with encryption"
+- "api endpoint"
+- "database replica"
 
 Never explain yourself. Never ask questions back.
 If asked a question, answer with one word or a short phrase.
@@ -106,13 +106,13 @@ Trust the system to make reasonable choices.`,
 Include background context, reasoning, and tangential information.
 Bury the actual requirements within paragraphs of explanation.
 
-Example: Instead of "I need an S3 bucket for logs", say:
+Example: Instead of "I need storage for logs", say:
 "So I've been thinking about our logging infrastructure, and you know how
 we've had issues in the past with log retention and finding the right logs
 when we need them for debugging? Well, I was reading this blog post about
-best practices and it mentioned that having a centralized logging bucket
-could really help with that. So I'm thinking maybe we should set up an S3
-bucket specifically for logs. But I'm not sure about the exact configuration..."
+best practices and it mentioned that having centralized logging storage
+could really help with that. So I'm thinking maybe we should set up some
+storage specifically for logs. But I'm not sure about the exact configuration..."
 
 Make the Runner work to extract the actual requirements.`,
 		ExpectedBehavior: "Runner should filter signal from noise and clarify core requirements",

@@ -37,45 +37,29 @@ type DomainConfig struct {
 	OutputFormat string
 }
 
-// DefaultAWSDomain returns the default AWS CloudFormation domain configuration.
-// This provides backwards compatibility for existing AWS integrations.
-func DefaultAWSDomain() DomainConfig {
-	return DomainConfig{
-		Name:       "aws",
-		CLICommand: "wetwire-aws",
-		SystemPrompt: `You are an infrastructure code generator using the wetwire-aws framework.
-Your job is to generate Go code that defines AWS CloudFormation resources.
-
-The user will describe what infrastructure they need. You will:
-1. Ask clarifying questions if the requirements are unclear
-2. Generate Go code using the wetwire-aws patterns
-3. Run the linter and fix any issues
-4. Build the CloudFormation template
-
-Use the wrapper pattern for all resources:
-
-    var MyBucket = s3.Bucket{
-        BucketName: "my-bucket",
-    }
-
-    var MyFunction = lambda.Function{
-        Role: MyRole.Arn,  // Reference to another resource's attribute
-    }
-
-Available tools:
-- init_package: Create a new package directory
-- write_file: Write a Go file
-- read_file: Read a file's contents
-- run_lint: Run the linter on the package
-- run_build: Build the CloudFormation template
-- ask_developer: Ask the developer a clarifying question
-
-Always run_lint after writing files, and fix any issues before running build.`,
-		OutputFormat: "CloudFormation JSON",
-	}
-}
 
 // RunnerAgent generates infrastructure code using a configurable AI provider.
+//
+// Deprecated: Use Agent with MCPServerAdapter instead. RunnerAgent hardcodes
+// its tools, while the new Agent architecture gets tools from an MCP server.
+// This provides better extensibility and consistency across wetwire domains.
+//
+// Migration example:
+//
+//	// Old:
+//	runner, _ := NewRunnerAgent(RunnerConfig{...})
+//	runner.Run(ctx, prompt)
+//
+//	// New:
+//	mcpServer := mcp.NewServer(mcp.Config{Name: "domain"})
+//	// Register tools with mcpServer...
+//	agent, _ := NewAgent(AgentConfig{
+//		Provider:     provider,
+//		MCPServer:    NewMCPServerAdapter(mcpServer),
+//		SystemPrompt: "...",
+//	})
+//	agent.Run(ctx, prompt)
+//
 type RunnerAgent struct {
 	provider       providers.Provider
 	model          string
@@ -102,8 +86,7 @@ type StreamHandler = providers.StreamHandler
 
 // RunnerConfig configures the RunnerAgent.
 type RunnerConfig struct {
-	// Domain provides domain-specific configuration.
-	// If not set, defaults to AWS (DefaultAWSDomain) for backwards compatibility.
+	// Domain provides domain-specific configuration (required).
 	Domain DomainConfig
 
 	// Provider is the AI provider to use. If nil, defaults to Anthropic.
@@ -148,10 +131,10 @@ func NewRunnerAgent(config RunnerConfig) (*RunnerAgent, error) {
 		}
 	}
 
-	// Default to AWS domain for backwards compatibility
+	// Domain is required
 	domain := config.Domain
 	if domain.CLICommand == "" {
-		domain = DefaultAWSDomain()
+		return nil, fmt.Errorf("domain.CLICommand is required")
 	}
 
 	if config.WorkDir == "" {
@@ -377,6 +360,9 @@ func (r *RunnerAgent) LintPassed() bool {
 
 // getTools returns the tool definitions for the agent.
 // Tool descriptions are domain-agnostic where possible.
+//
+// Deprecated: This method hardcodes tools. Use the unified Agent with
+// an MCP server instead, which allows dynamic tool registration.
 func (r *RunnerAgent) getTools() []providers.Tool {
 	return []providers.Tool{
 		{
@@ -465,6 +451,9 @@ func (r *RunnerAgent) getTools() []providers.Tool {
 }
 
 // executeTool executes a tool and returns the result.
+//
+// Deprecated: This method hardcodes tool execution. Use the unified Agent
+// which executes tools via MCP server for better extensibility.
 func (r *RunnerAgent) executeTool(ctx context.Context, name string, input json.RawMessage) string {
 	var params map[string]string
 	if err := json.Unmarshal(input, &params); err != nil {
@@ -633,4 +622,238 @@ func CreateDeveloperResponderWithProvider(provider providers.Provider, apiKey st
 
 		return response.String(), nil
 	}
+}
+
+// ============================================================================
+// Unified Agent Architecture (Issue #56)
+// ============================================================================
+
+// Developer is the interface for asking clarifying questions during agent execution.
+// This is optional - if nil, the agent runs autonomously.
+type Developer interface {
+	// Respond generates a response to a question from the agent.
+	Respond(ctx context.Context, message string) (string, error)
+}
+
+// MCPServer is the interface for MCP servers that provide tools to agents.
+type MCPServer interface {
+	// ExecuteTool executes a tool directly without stdio.
+	ExecuteTool(ctx context.Context, name string, args map[string]any) (string, error)
+
+	// GetTools returns the list of registered tools.
+	GetTools() []MCPToolInfo
+}
+
+// MCPToolInfo describes a tool available from an MCP server.
+type MCPToolInfo struct {
+	Name        string
+	Description string
+	InputSchema map[string]any
+}
+
+// Agent represents the unified agent that can operate in multiple modes:
+// - Autonomous: developer=nil, runs without human interaction
+// - Interactive: developer!=nil, can ask clarifying questions
+// - Scenario: runs test scenarios with AI personas
+//
+// The Agent gets all its tools from an MCP server, not hardcoded methods.
+// This makes it extensible and domain-agnostic.
+type Agent struct {
+	provider      providers.Provider
+	model         string
+	mcpServer     MCPServer
+	session       *results.Session
+	developer     Developer
+	systemPrompt  string
+	streamHandler providers.StreamHandler
+}
+
+// AgentConfig configures the unified Agent.
+type AgentConfig struct {
+	// Provider is the AI provider (required)
+	Provider providers.Provider
+
+	// Model to use (defaults to claude-sonnet-4-20250514)
+	Model string
+
+	// MCPServer provides tools (required)
+	MCPServer MCPServer
+
+	// Session tracks execution results (optional)
+	Session *results.Session
+
+	// Developer to ask questions (nil for autonomous mode)
+	Developer Developer
+
+	// SystemPrompt for the agent (required)
+	SystemPrompt string
+
+	// StreamHandler for streaming responses (optional)
+	StreamHandler providers.StreamHandler
+}
+
+// NewAgent creates a new unified Agent.
+func NewAgent(config AgentConfig) (*Agent, error) {
+	if config.Provider == nil {
+		return nil, fmt.Errorf("provider is required")
+	}
+	if config.MCPServer == nil {
+		return nil, fmt.Errorf("mcpServer is required")
+	}
+	if config.SystemPrompt == "" {
+		return nil, fmt.Errorf("systemPrompt is required")
+	}
+
+	model := config.Model
+	if model == "" {
+		model = anthropicprovider.DefaultModel
+	}
+
+	return &Agent{
+		provider:      config.Provider,
+		model:         model,
+		mcpServer:     config.MCPServer,
+		session:       config.Session,
+		developer:     config.Developer,
+		systemPrompt:  config.SystemPrompt,
+		streamHandler: config.StreamHandler,
+	}, nil
+}
+
+// Run executes the agent's workflow with the given prompt.
+func (a *Agent) Run(ctx context.Context, prompt string) error {
+	// Get tools from MCP server
+	mcpTools := a.mcpServer.GetTools()
+	tools := make([]providers.Tool, len(mcpTools))
+	for i, t := range mcpTools {
+		tools[i] = providers.Tool{
+			Name:        t.Name,
+			Description: t.Description,
+			InputSchema: providers.ToolInputSchema{
+				Properties: a.extractProperties(t.InputSchema),
+				Required:   a.extractRequired(t.InputSchema),
+			},
+		}
+	}
+
+	messages := []providers.Message{
+		providers.NewUserMessage(prompt),
+	}
+
+	// Agentic loop
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		req := providers.MessageRequest{
+			Model:     a.model,
+			MaxTokens: 4096,
+			System:    a.systemPrompt,
+			Messages:  messages,
+			Tools:     tools,
+		}
+
+		var resp *providers.MessageResponse
+		var err error
+
+		if a.streamHandler != nil {
+			resp, err = a.provider.StreamMessage(ctx, req, a.streamHandler)
+		} else {
+			resp, err = a.provider.CreateMessage(ctx, req)
+		}
+		if err != nil {
+			return fmt.Errorf("API call failed: %w", err)
+		}
+
+		// Add assistant response to messages
+		messages = append(messages, providers.NewAssistantMessage(resp.Content))
+
+		// Check for stop reason
+		if resp.StopReason == providers.StopReasonEndTurn {
+			break
+		}
+
+		// Process tool calls
+		if resp.StopReason == providers.StopReasonToolUse {
+			var toolResults []providers.ContentBlock
+
+			for _, block := range resp.Content {
+				if block.Type == "tool_use" {
+					result, err := a.executeTool(ctx, block.Name, block.Input)
+					toolResults = append(toolResults, providers.NewToolResult(
+						block.ID,
+						result,
+						err != nil,
+					))
+				}
+			}
+
+			messages = append(messages, providers.NewToolResultMessage(toolResults))
+		}
+	}
+
+	return nil
+}
+
+// executeTool executes a tool via the MCP server.
+func (a *Agent) executeTool(ctx context.Context, name string, input json.RawMessage) (string, error) {
+	var args map[string]any
+	if err := json.Unmarshal(input, &args); err != nil {
+		return "", fmt.Errorf("error parsing input: %w", err)
+	}
+
+	// Special handling for ask_developer if available
+	if name == "ask_developer" && a.developer != nil {
+		question, ok := args["question"].(string)
+		if !ok {
+			return "", fmt.Errorf("ask_developer requires a 'question' string parameter")
+		}
+
+		answer, err := a.developer.Respond(ctx, question)
+		if err != nil {
+			return "", err
+		}
+
+		if a.session != nil {
+			a.session.AddQuestion(question, answer)
+		}
+
+		return answer, nil
+	}
+
+	// Execute via MCP server
+	result, err := a.mcpServer.ExecuteTool(ctx, name, args)
+	if err != nil {
+		return "", err
+	}
+
+	return result, nil
+}
+
+// extractProperties extracts the properties map from a JSON schema.
+func (a *Agent) extractProperties(schema map[string]any) map[string]any {
+	if props, ok := schema["properties"].(map[string]any); ok {
+		return props
+	}
+	return map[string]any{}
+}
+
+// extractRequired extracts the required fields from a JSON schema.
+func (a *Agent) extractRequired(schema map[string]any) []string {
+	if req, ok := schema["required"].([]any); ok {
+		required := make([]string, len(req))
+		for i, r := range req {
+			if s, ok := r.(string); ok {
+				required[i] = s
+			}
+		}
+		return required
+	}
+	if req, ok := schema["required"].([]string); ok {
+		return req
+	}
+	return []string{}
 }

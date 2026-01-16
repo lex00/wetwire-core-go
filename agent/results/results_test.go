@@ -128,9 +128,7 @@ func TestSession_JSON(t *testing.T) {
 
 func TestWriter_Write(t *testing.T) {
 	// Create temp directory
-	tmpDir, err := os.MkdirTemp("", "results-test-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	// Create session with score
 	session := NewSession("beginner", "test")
@@ -146,7 +144,7 @@ func TestWriter_Write(t *testing.T) {
 
 	// Write results
 	writer := NewWriter(tmpDir)
-	err = writer.Write(session)
+	err := writer.Write(session)
 	require.NoError(t, err)
 
 	// Verify RESULTS.md was created
@@ -190,7 +188,6 @@ func TestWriter_FormatMarkdown(t *testing.T) {
 	score := scoring.NewScore("expert", "lambda_api")
 	score.Completeness.Rating = 3
 	score.LintQuality.Rating = 2
-	score.CodeQuality.Rating = 3
 	score.OutputValidity.Rating = 3
 	score.QuestionEfficiency.Rating = 2
 	session.Score = score

@@ -233,70 +233,64 @@ func TestOrchestrator_CalculateScore_EdgeCases(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name              string
-		expectedResources int
-		actualResources   int
-		lintPassed        bool
-		codeIssues        []string
-		cfnErrors         int
-		cfnWarnings       int
-		minTotal          int
-		maxTotal          int
+		name               string
+		expectedResources  int
+		actualResources    int
+		lintPassed         bool
+		validationErrors   int
+		validationWarnings int
+		minTotal           int
+		maxTotal           int
 	}{
 		{
-			name:              "perfect_score",
-			expectedResources: 10,
-			actualResources:   10,
-			lintPassed:        true,
-			codeIssues:        []string{},
-			cfnErrors:         0,
-			cfnWarnings:       0,
-			minTotal:          13, // Should be excellent
-			maxTotal:          15,
+			name:               "perfect_score",
+			expectedResources:  10,
+			actualResources:    10,
+			lintPassed:         true,
+			validationErrors:   0,
+			validationWarnings: 0,
+			minTotal:           10, // Should be excellent (0-12 scale)
+			maxTotal:           12,
 		},
 		{
-			name:              "zero_resources",
-			expectedResources: 0,
-			actualResources:   0,
-			lintPassed:        true,
-			codeIssues:        []string{},
-			cfnErrors:         0,
-			cfnWarnings:       0,
-			minTotal:          10,
-			maxTotal:          15,
+			name:               "zero_resources",
+			expectedResources:  0,
+			actualResources:    0,
+			lintPassed:         true,
+			validationErrors:   0,
+			validationWarnings: 0,
+			minTotal:           8,
+			maxTotal:           12,
 		},
 		{
-			name:              "complete_failure",
-			expectedResources: 10,
-			actualResources:   0,
-			lintPassed:        false,
-			codeIssues:        make([]string, 10),
-			cfnErrors:         5,
-			cfnWarnings:       10,
-			minTotal:          0,
-			maxTotal:          5,
+			name:               "complete_failure",
+			expectedResources:  10,
+			actualResources:    0,
+			lintPassed:         false,
+			validationErrors:   5,
+			validationWarnings: 10,
+			minTotal:           0,
+			maxTotal:           4,
 		},
 		{
-			name:              "partial_success",
-			expectedResources: 10,
-			actualResources:   5,
-			lintPassed:        true,
-			codeIssues:        []string{"issue1"},
-			cfnErrors:         0,
-			cfnWarnings:       3,
-			minTotal:          6,
-			maxTotal:          12,
+			name:               "partial_success",
+			expectedResources:  10,
+			actualResources:    5,
+			lintPassed:         true,
+			validationErrors:   0,
+			validationWarnings: 3,
+			minTotal:           5,
+			maxTotal:           10,
 		},
 		{
-			name:              "very_large_numbers",
-			expectedResources: 1000,
-			actualResources:   1000,
-			lintPassed:        true,
-			codeIssues:        []string{},
-			cfnErrors:         0,
-			cfnWarnings:       0,
-			minTotal:          13,
-			maxTotal:          15,
+			name:               "very_large_numbers",
+			expectedResources:  1000,
+			actualResources:    1000,
+			lintPassed:         true,
+			validationErrors:   0,
+			validationWarnings: 0,
+			minTotal:           10,
+			maxTotal:           12,
 		},
 	}
 
@@ -314,16 +308,15 @@ func TestOrchestrator_CalculateScore_EdgeCases(t *testing.T) {
 			if tt.lintPassed {
 				orch.session.AddLintCycle([]string{}, 0, true)
 			} else {
-				orch.session.AddLintCycle(tt.codeIssues, 0, false)
+				orch.session.AddLintCycle([]string{"error"}, 0, false)
 			}
 
 			score := orch.CalculateScore(
 				tt.expectedResources,
 				tt.actualResources,
 				tt.lintPassed,
-				tt.codeIssues,
-				tt.cfnErrors,
-				tt.cfnWarnings,
+				tt.validationErrors,
+				tt.validationWarnings,
 			)
 
 			assert.NotNil(t, score)
@@ -433,7 +426,7 @@ func TestAIDeveloper_Respond(t *testing.T) {
 			persona: personas.Beginner,
 			message: "What encryption?",
 			responder: func(ctx context.Context, systemPrompt, message string) (string, error) {
-				assert.Contains(t, systemPrompt, "new to AWS")
+				assert.Contains(t, systemPrompt, "new to infrastructure")
 				return "I'm not sure, what do you recommend?", nil
 			},
 			expected: "I'm not sure, what do you recommend?",

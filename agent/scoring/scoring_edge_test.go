@@ -159,66 +159,6 @@ func TestScoreLintQuality_EdgeCases(t *testing.T) {
 	}
 }
 
-// TestScoreCodeQuality_EdgeCases tests edge cases for code quality scoring
-func TestScoreCodeQuality_EdgeCases(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name   string
-		issues []string
-		rating Rating
-	}{
-		{
-			name:   "nil_issues",
-			issues: nil,
-			rating: RatingExcellent,
-		},
-		{
-			name:   "empty_slice",
-			issues: []string{},
-			rating: RatingExcellent,
-		},
-		{
-			name:   "exactly_2_issues",
-			issues: []string{"issue1", "issue2"},
-			rating: RatingGood,
-		},
-		{
-			name:   "exactly_5_issues",
-			issues: []string{"1", "2", "3", "4", "5"},
-			rating: RatingPartial,
-		},
-		{
-			name:   "many_issues",
-			issues: make([]string, 100),
-			rating: RatingNone,
-		},
-		{
-			name:   "very_long_issue_messages",
-			issues: []string{string(make([]byte, 10000))},
-			rating: RatingGood,
-		},
-		{
-			name:   "unicode_issues",
-			issues: []string{"错误: 文件不存在", "エラー: ファイルが見つかりません"},
-			rating: RatingGood,
-		},
-		{
-			name:   "empty_string_issues",
-			issues: []string{"", "", ""},
-			rating: RatingPartial,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			rating, notes := ScoreCodeQuality(tt.issues)
-			assert.Equal(t, tt.rating, rating)
-			assert.NotEmpty(t, notes)
-		})
-	}
-}
-
 // TestScoreOutputValidity_EdgeCases tests edge cases for output validity scoring
 func TestScoreOutputValidity_EdgeCases(t *testing.T) {
 	t.Parallel()
@@ -349,33 +289,33 @@ func TestScore_Total_EdgeCases(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		ratings  [5]Rating
+		ratings  [4]Rating
 		expected int
 	}{
 		{
 			name:     "all_zero",
-			ratings:  [5]Rating{0, 0, 0, 0, 0},
+			ratings:  [4]Rating{0, 0, 0, 0},
 			expected: 0,
 		},
 		{
 			name:     "all_max",
-			ratings:  [5]Rating{3, 3, 3, 3, 3},
-			expected: 15,
+			ratings:  [4]Rating{3, 3, 3, 3},
+			expected: 12,
 		},
 		{
 			name:     "mixed",
-			ratings:  [5]Rating{3, 2, 1, 0, 3},
+			ratings:  [4]Rating{3, 2, 1, 3},
 			expected: 9,
 		},
 		{
 			name:     "all_partial",
-			ratings:  [5]Rating{1, 1, 1, 1, 1},
-			expected: 5,
+			ratings:  [4]Rating{1, 1, 1, 1},
+			expected: 4,
 		},
 		{
 			name:     "all_good",
-			ratings:  [5]Rating{2, 2, 2, 2, 2},
-			expected: 10,
+			ratings:  [4]Rating{2, 2, 2, 2},
+			expected: 8,
 		},
 	}
 
@@ -384,9 +324,8 @@ func TestScore_Total_EdgeCases(t *testing.T) {
 			s := NewScore("test", "test")
 			s.Completeness.Rating = tt.ratings[0]
 			s.LintQuality.Rating = tt.ratings[1]
-			s.CodeQuality.Rating = tt.ratings[2]
-			s.OutputValidity.Rating = tt.ratings[3]
-			s.QuestionEfficiency.Rating = tt.ratings[4]
+			s.OutputValidity.Rating = tt.ratings[2]
+			s.QuestionEfficiency.Rating = tt.ratings[3]
 
 			total := s.Total()
 			assert.Equal(t, tt.expected, total)
@@ -410,37 +349,37 @@ func TestScore_Threshold_Boundaries(t *testing.T) {
 		},
 		{
 			name:      "maximum_failure",
-			total:     5,
+			total:     4,
 			threshold: "Failure",
 		},
 		{
 			name:      "minimum_partial",
-			total:     6,
+			total:     5,
 			threshold: "Partial",
 		},
 		{
 			name:      "maximum_partial",
-			total:     9,
+			total:     7,
 			threshold: "Partial",
 		},
 		{
 			name:      "minimum_success",
-			total:     10,
+			total:     8,
 			threshold: "Success",
 		},
 		{
 			name:      "maximum_success",
-			total:     12,
+			total:     10,
 			threshold: "Success",
 		},
 		{
 			name:      "minimum_excellent",
-			total:     13,
+			total:     11,
 			threshold: "Excellent",
 		},
 		{
 			name:      "maximum_excellent",
-			total:     15,
+			total:     12,
 			threshold: "Excellent",
 		},
 	}
@@ -449,9 +388,9 @@ func TestScore_Threshold_Boundaries(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			s := NewScore("test", "test")
 
-			// Distribute the total across dimensions
+			// Distribute the total across 4 dimensions
 			remainder := tt.total
-			for i := 0; i < 5 && remainder > 0; i++ {
+			for i := 0; i < 4 && remainder > 0; i++ {
 				rating := min(3, remainder)
 				remainder -= rating
 
@@ -461,10 +400,8 @@ func TestScore_Threshold_Boundaries(t *testing.T) {
 				case 1:
 					s.LintQuality.Rating = Rating(rating)
 				case 2:
-					s.CodeQuality.Rating = Rating(rating)
-				case 3:
 					s.OutputValidity.Rating = Rating(rating)
-				case 4:
+				case 3:
 					s.QuestionEfficiency.Rating = Rating(rating)
 				}
 			}
@@ -485,13 +422,13 @@ func TestScore_Passed_Boundaries(t *testing.T) {
 		passed bool
 	}{
 		{
-			name:   "exactly_5_fails",
-			total:  5,
+			name:   "exactly_4_fails",
+			total:  4,
 			passed: false,
 		},
 		{
-			name:   "exactly_6_passes",
-			total:  6,
+			name:   "exactly_5_passes",
+			total:  5,
 			passed: true,
 		},
 		{
@@ -501,7 +438,7 @@ func TestScore_Passed_Boundaries(t *testing.T) {
 		},
 		{
 			name:   "maximum_passes",
-			total:  15,
+			total:  12,
 			passed: true,
 		},
 	}
@@ -510,13 +447,11 @@ func TestScore_Passed_Boundaries(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			s := NewScore("test", "test")
 
-			// Set ratings to achieve target total
+			// Set ratings to achieve target total (4 dimensions)
 			s.Completeness.Rating = Rating(min(3, tt.total))
 			remainder := tt.total - int(s.Completeness.Rating)
 			s.LintQuality.Rating = Rating(min(3, remainder))
 			remainder -= int(s.LintQuality.Rating)
-			s.CodeQuality.Rating = Rating(min(3, remainder))
-			remainder -= int(s.CodeQuality.Rating)
 			s.OutputValidity.Rating = Rating(min(3, remainder))
 			remainder -= int(s.OutputValidity.Rating)
 			s.QuestionEfficiency.Rating = Rating(remainder)
@@ -556,7 +491,6 @@ func TestScore_String_Output(t *testing.T) {
 	s.Completeness.Rating = RatingExcellent
 	s.Completeness.Notes = "Test notes"
 	s.LintQuality.Rating = RatingGood
-	s.CodeQuality.Rating = RatingPartial
 	s.OutputValidity.Rating = RatingNone
 	s.QuestionEfficiency.Rating = RatingExcellent
 
@@ -564,12 +498,11 @@ func TestScore_String_Output(t *testing.T) {
 
 	// Verify key components are present
 	assert.Contains(t, output, "Score:")
-	assert.Contains(t, output, "/15")
+	assert.Contains(t, output, "/12")
 	assert.Contains(t, output, "test-persona")
 	assert.Contains(t, output, "test-scenario")
 	assert.Contains(t, output, "Completeness")
 	assert.Contains(t, output, "Lint Quality")
-	assert.Contains(t, output, "Code Quality")
 	assert.Contains(t, output, "Output Validity")
 	assert.Contains(t, output, "Question Efficiency")
 	assert.Contains(t, output, "Test notes")
@@ -593,9 +526,6 @@ func TestNewScore_Initialization(t *testing.T) {
 
 	assert.Equal(t, "Lint Quality", s.LintQuality.Name)
 	assert.NotEmpty(t, s.LintQuality.Description)
-
-	assert.Equal(t, "Code Quality", s.CodeQuality.Name)
-	assert.NotEmpty(t, s.CodeQuality.Description)
 
 	assert.Equal(t, "Output Validity", s.OutputValidity.Name)
 	assert.NotEmpty(t, s.OutputValidity.Description)

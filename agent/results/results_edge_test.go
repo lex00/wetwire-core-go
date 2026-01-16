@@ -208,7 +208,7 @@ func TestWriter_EdgeCases(t *testing.T) {
 			setup: func() (*Session, string) {
 				dir := t.TempDir()
 				// Make directory read-only
-				os.Chmod(dir, 0444)
+				_ = os.Chmod(dir, 0444)
 				return NewSession("test", "test"), dir
 			},
 			wantErr: true,
@@ -403,7 +403,6 @@ func TestSession_JSON_EdgeCases(t *testing.T) {
 	score := scoring.NewScore("test", "test")
 	score.Completeness.Rating = 3
 	score.LintQuality.Rating = 2
-	score.CodeQuality.Rating = 1
 	score.OutputValidity.Rating = 0
 	score.QuestionEfficiency.Rating = 3
 	session.Score = score

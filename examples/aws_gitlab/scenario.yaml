@@ -1,10 +1,17 @@
-name: aws_gitlab_deployment
-description: AWS infrastructure with GitLab CI/CD pipeline for deployment
+name: aws_gitlab_s3_deploy
+description: S3 bucket with GitLab CI/CD pipeline for deployment
+
+# Model to use: haiku (fast), sonnet (balanced), opus (best quality)
+model: haiku
 
 prompts:
   default: prompt.md
   variants:
-    minimal: prompts/minimal.md
+    beginner: prompts/beginner.md
+    intermediate: prompts/intermediate.md
+    expert: prompts/expert.md
+    terse: prompts/terse.md
+    verbose: prompts/verbose.md
 
 domains:
   - name: aws
@@ -14,8 +21,7 @@ domains:
       build: wetwire_build
       validate: wetwire_validate
     outputs:
-      - cfn-templates/*.json
-      - cfn-templates/*.yaml
+      - cfn-templates/s3-bucket.yaml
 
   - name: gitlab
     cli: wetwire-gitlab
@@ -26,7 +32,6 @@ domains:
       - aws
     outputs:
       - .gitlab-ci.yml
-      - deploy/*.yaml
 
 cross_domain:
   - from: aws
@@ -34,17 +39,15 @@ cross_domain:
     type: artifact_reference
     validation:
       required_refs:
-        - "${aws.vpc.outputs.vpc_id}"
-        - "${aws.eks.outputs.cluster_name}"
-        - "${aws.rds.outputs.endpoint}"
+        - "${aws.s3.outputs.bucket_name}"
 
 validation:
   aws:
     stacks:
-      min: 3
-      max: 10
+      min: 1
+      max: 1
     resources:
-      min: 5
+      min: 1
   gitlab:
     pipelines:
       min: 1

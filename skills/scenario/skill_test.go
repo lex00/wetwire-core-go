@@ -58,12 +58,12 @@ Requirements:
 `
 
 func TestSkillName(t *testing.T) {
-	skill := New()
+	skill := New(nil, nil)
 	assert.Equal(t, "scenario", skill.Name())
 }
 
 func TestSkillDescription(t *testing.T) {
-	skill := New()
+	skill := New(nil, nil)
 	assert.Contains(t, skill.Description(), "scenario")
 }
 
@@ -78,7 +78,7 @@ func TestSkillRun(t *testing.T) {
 	err = os.WriteFile(promptPath, []byte(testPrompt), 0644)
 	require.NoError(t, err)
 
-	skill := New()
+	skill := New(nil, nil)
 	var buf bytes.Buffer
 	skill.SetOutput(&buf)
 
@@ -117,7 +117,7 @@ domains:
 	err := os.WriteFile(scenarioPath, []byte(singleDomainYAML), 0644)
 	require.NoError(t, err)
 
-	skill := New()
+	skill := New(nil, nil)
 	var buf bytes.Buffer
 	skill.SetOutput(&buf)
 
@@ -142,7 +142,7 @@ domains:
 	err := os.WriteFile(scenarioPath, []byte(simpleYAML), 0644)
 	require.NoError(t, err)
 
-	skill := New()
+	skill := New(nil, nil)
 	var buf bytes.Buffer
 	skill.SetOutput(&buf)
 
@@ -154,7 +154,7 @@ domains:
 }
 
 func TestSkillRunScenarioNotFound(t *testing.T) {
-	skill := New()
+	skill := New(nil, nil)
 	var buf bytes.Buffer
 	skill.SetOutput(&buf)
 
@@ -169,7 +169,7 @@ func TestSkillRunInvalidYAML(t *testing.T) {
 	err := os.WriteFile(scenarioPath, []byte("invalid: yaml: content:"), 0644)
 	require.NoError(t, err)
 
-	skill := New()
+	skill := New(nil, nil)
 	var buf bytes.Buffer
 	skill.SetOutput(&buf)
 
@@ -200,7 +200,7 @@ domains:
 	err = os.Chdir(tmpDir)
 	require.NoError(t, err)
 
-	skill := New()
+	skill := New(nil, nil)
 	var buf bytes.Buffer
 	skill.SetOutput(&buf)
 

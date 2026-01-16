@@ -156,7 +156,7 @@ func TestToolReadFile_EdgeCases(t *testing.T) {
 			name: "empty_file",
 			setup: func(dir string) string {
 				path := filepath.Join(dir, "empty.go")
-				os.WriteFile(path, []byte{}, 0644)
+				_ = os.WriteFile(path, []byte{}, 0644)
 				return "empty.go"
 			},
 			expectError: false,
@@ -167,7 +167,7 @@ func TestToolReadFile_EdgeCases(t *testing.T) {
 				path := filepath.Join(dir, "large.go")
 				// Create a file with 10K characters
 				content := strings.Repeat("x", 10000)
-				os.WriteFile(path, []byte(content), 0644)
+				_ = os.WriteFile(path, []byte(content), 0644)
 				return "large.go"
 			},
 			expectError: false,
@@ -176,7 +176,7 @@ func TestToolReadFile_EdgeCases(t *testing.T) {
 			name: "unicode_content",
 			setup: func(dir string) string {
 				path := filepath.Join(dir, "unicode.go")
-				os.WriteFile(path, []byte("// Comment with emoji: 🚀\npackage main"), 0644)
+				_ = os.WriteFile(path, []byte("// Comment with emoji: 🚀\npackage main"), 0644)
 				return "unicode.go"
 			},
 			expectError: false,
@@ -557,7 +557,14 @@ func TestStateTransitions(t *testing.T) {
 
 // TestNewRunnerAgent_Configuration tests various configuration scenarios
 func TestNewRunnerAgent_Configuration(t *testing.T) {
-	t.Parallel()
+	// Note: cannot use t.Parallel() because subtests use t.Setenv
+
+	testDomain := DomainConfig{
+		Name:         "test",
+		CLICommand:   "test-cli",
+		SystemPrompt: "Test prompt",
+		OutputFormat: "JSON",
+	}
 
 	tests := []struct {
 		name      string
@@ -568,6 +575,7 @@ func TestNewRunnerAgent_Configuration(t *testing.T) {
 		{
 			name: "valid_config_with_api_key",
 			config: RunnerConfig{
+				Domain:        testDomain,
 				APIKey:        "test-key",
 				WorkDir:       t.TempDir(),
 				MaxLintCycles: 5,
@@ -578,6 +586,7 @@ func TestNewRunnerAgent_Configuration(t *testing.T) {
 		{
 			name: "empty_config_with_env",
 			config: RunnerConfig{
+				Domain: testDomain,
 				APIKey: "",
 			},
 			setEnv:    true,
@@ -586,6 +595,7 @@ func TestNewRunnerAgent_Configuration(t *testing.T) {
 		{
 			name: "no_api_key",
 			config: RunnerConfig{
+				Domain: testDomain,
 				APIKey: "",
 			},
 			setEnv:    false,
@@ -594,20 +604,28 @@ func TestNewRunnerAgent_Configuration(t *testing.T) {
 		{
 			name: "defaults_applied",
 			config: RunnerConfig{
+				Domain: testDomain,
 				APIKey: "test-key",
 			},
 			setEnv:    false,
 			wantError: false,
+		},
+		{
+			name: "missing_domain",
+			config: RunnerConfig{
+				APIKey: "test-key",
+			},
+			setEnv:    false,
+			wantError: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.setEnv {
-				os.Setenv("ANTHROPIC_API_KEY", "test-env-key")
-				defer os.Unsetenv("ANTHROPIC_API_KEY")
+				t.Setenv("ANTHROPIC_API_KEY", "test-env-key")
 			} else {
-				os.Unsetenv("ANTHROPIC_API_KEY")
+				t.Setenv("ANTHROPIC_API_KEY", "")
 			}
 
 			agent, err := NewRunnerAgent(tt.config)

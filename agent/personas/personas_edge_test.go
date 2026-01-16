@@ -178,7 +178,7 @@ func TestBeginner_Characteristics(t *testing.T) {
 
 	assert.Equal(t, "beginner", Beginner.Name)
 	assert.Contains(t, strings.ToLower(Beginner.Description), "new")
-	assert.Contains(t, strings.ToLower(Beginner.SystemPrompt), "new to aws")
+	assert.Contains(t, strings.ToLower(Beginner.SystemPrompt), "new to infrastructure")
 	assert.Contains(t, strings.ToLower(Beginner.SystemPrompt), "uncertain")
 	assert.Contains(t, Beginner.ExpectedBehavior, "safe defaults")
 }
@@ -188,7 +188,7 @@ func TestIntermediate_Characteristics(t *testing.T) {
 	t.Parallel()
 
 	assert.Equal(t, "intermediate", Intermediate.Name)
-	assert.Contains(t, Intermediate.Description, "AWS experience")
+	assert.Contains(t, Intermediate.Description, "experience")
 	assert.Contains(t, strings.ToLower(Intermediate.SystemPrompt), "moderate")
 	assert.Contains(t, Intermediate.ExpectedBehavior, "fill in details")
 }
@@ -198,7 +198,7 @@ func TestExpert_Characteristics(t *testing.T) {
 	t.Parallel()
 
 	assert.Equal(t, "expert", Expert.Name)
-	assert.Contains(t, Expert.Description, "Deep AWS knowledge")
+	assert.Contains(t, strings.ToLower(Expert.Description), "deep")
 	assert.Contains(t, strings.ToLower(Expert.SystemPrompt), "senior")
 	assert.Contains(t, strings.ToLower(Expert.SystemPrompt), "expertise")
 	assert.Contains(t, Expert.ExpectedBehavior, "exactly as specified")

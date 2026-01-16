@@ -234,7 +234,7 @@ func (r *Recorder) generateCastFile(path string, output string, _ time.Duration)
 	// 2. User prompt (typing simulation - character by character)
 	userPrompt := r.config.UserPrompt
 	if userPrompt == "" {
-		userPrompt = fmt.Sprintf(DefaultUserPrompt, r.config.ScenarioName)
+		userPrompt = DefaultUserPrompt
 	}
 	if strings.TrimSpace(userPrompt) != "" {
 		// Type each character
@@ -265,7 +265,7 @@ func (r *Recorder) generateCastFile(path string, output string, _ time.Duration)
 	// 3. Agent response (instant)
 	agentResponse := r.config.AgentResponse
 	if agentResponse == "" {
-		agentResponse = fmt.Sprintf(DefaultAgentResponse, r.config.ScenarioName)
+		agentResponse = DefaultAgentResponse
 	}
 	if strings.TrimSpace(agentResponse) != "" {
 		escapedResponse := escapeJSON(agentResponse)

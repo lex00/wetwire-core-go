@@ -12,6 +12,10 @@ type ScenarioConfig struct {
 	// Description explains what this scenario produces
 	Description string `yaml:"description,omitempty"`
 
+	// Model specifies the Claude model to use (e.g., "haiku", "sonnet", "opus")
+	// Defaults to the Claude CLI default if not specified
+	Model string `yaml:"model,omitempty"`
+
 	// Prompts contains prompt configuration for design mode
 	Prompts *PromptConfig `yaml:"prompts,omitempty"`
 

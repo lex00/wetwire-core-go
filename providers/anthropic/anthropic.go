@@ -209,9 +209,10 @@ func (p *Provider) StreamMessage(ctx context.Context, req providers.MessageReque
 		case "content_block_start":
 			startEvent := event.AsContentBlockStart()
 
-			if startEvent.ContentBlock.Type == "text" {
+			switch startEvent.ContentBlock.Type {
+			case "text":
 				currentTextContent[startEvent.Index] = &strings.Builder{}
-			} else if startEvent.ContentBlock.Type == "tool_use" {
+			case "tool_use":
 				currentToolInput[startEvent.Index] = &strings.Builder{}
 			}
 
