@@ -10,7 +10,7 @@ func TestGenerateMCPConfig(t *testing.T) {
 	config := Config{
 		AgentName:   "test-agent",
 		AgentPrompt: "Test prompt",
-		MCPCommand:  "test-mcp",
+		MCPCommand:  "/path/to/test-mcp",
 		MCPArgs:     []string{"--verbose"},
 	}
 
@@ -20,16 +20,19 @@ func TestGenerateMCPConfig(t *testing.T) {
 		t.Errorf("expected 1 MCP server, got %d", len(mcpConfig.MCPServers))
 	}
 
-	server, ok := mcpConfig.MCPServers["test-mcp"]
+	// Server name defaults to MCPCommand when MCPServerName is not set
+	server, ok := mcpConfig.MCPServers["/path/to/test-mcp"]
 	if !ok {
-		t.Error("expected test-mcp server in config")
+		t.Error("expected /path/to/test-mcp server in config")
 	}
 
-	if server.Command != "uvx" {
-		t.Errorf("expected command 'uvx', got %q", server.Command)
+	// Command should be the MCPCommand value directly
+	if server.Command != "/path/to/test-mcp" {
+		t.Errorf("expected command '/path/to/test-mcp', got %q", server.Command)
 	}
 
-	expectedArgs := []string{"test-mcp", "--verbose"}
+	// Args should be MCPArgs directly, not prepending the command
+	expectedArgs := []string{"--verbose"}
 	if len(server.Args) != len(expectedArgs) {
 		t.Errorf("expected %d args, got %d", len(expectedArgs), len(server.Args))
 	}
@@ -37,6 +40,35 @@ func TestGenerateMCPConfig(t *testing.T) {
 		if server.Args[i] != arg {
 			t.Errorf("expected arg[%d] = %q, got %q", i, arg, server.Args[i])
 		}
+	}
+}
+
+func TestGenerateMCPConfig_WithServerName(t *testing.T) {
+	// When MCPServerName is set, use it as the server key instead of MCPCommand
+	config := Config{
+		AgentName:     "test-agent",
+		AgentPrompt:   "Test prompt",
+		MCPServerName: "wetwire-gitlab",
+		MCPCommand:    "/Users/alex/go/bin/wetwire-gitlab",
+		MCPArgs:       []string{"mcp"},
+	}
+
+	mcpConfig := GenerateMCPConfig(config)
+
+	// Server key should be MCPServerName, not the full path
+	server, ok := mcpConfig.MCPServers["wetwire-gitlab"]
+	if !ok {
+		t.Error("expected wetwire-gitlab server in config")
+	}
+
+	// Command should be the full path
+	if server.Command != "/Users/alex/go/bin/wetwire-gitlab" {
+		t.Errorf("expected command '/Users/alex/go/bin/wetwire-gitlab', got %q", server.Command)
+	}
+
+	// Args should be just ["mcp"]
+	if len(server.Args) != 1 || server.Args[0] != "mcp" {
+		t.Errorf("expected args [mcp], got %v", server.Args)
 	}
 }
 

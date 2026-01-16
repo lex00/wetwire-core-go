@@ -91,9 +91,6 @@ type AgentConfig struct {
 
 // GenerateMCPConfig generates the MCP server configuration.
 func GenerateMCPConfig(config Config) MCPConfig {
-	args := []string{config.MCPCommand}
-	args = append(args, config.MCPArgs...)
-
 	// Use MCPServerName if set, otherwise default to MCPCommand
 	serverName := config.MCPServerName
 	if serverName == "" {
@@ -103,8 +100,8 @@ func GenerateMCPConfig(config Config) MCPConfig {
 	return MCPConfig{
 		MCPServers: map[string]MCPServerConfig{
 			serverName: {
-				Command: "uvx",
-				Args:    args,
+				Command: config.MCPCommand,
+				Args:    config.MCPArgs,
 			},
 		},
 	}
