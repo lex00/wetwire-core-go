@@ -203,6 +203,14 @@ func (r *RunnerAgent) Run(ctx context.Context, prompt string) error {
 		// Add assistant response to messages
 		messages = append(messages, providers.NewAssistantMessage(resp.Content))
 
+		// Capture assistant response to session
+		if r.session != nil {
+			textContent := extractTextContent(resp.Content)
+			if textContent != "" {
+				r.session.AddMessage("runner", textContent)
+			}
+		}
+
 		// Check for stop reason
 		if resp.StopReason == providers.StopReasonEndTurn {
 			// Completion gate: check if lint requirements are met
@@ -854,4 +862,16 @@ func (a *Agent) extractRequired(schema map[string]any) []string {
 		return req
 	}
 	return []string{}
+}
+
+// extractTextContent extracts text content from response content blocks.
+// It concatenates all text blocks, ignoring tool_use and tool_result blocks.
+func extractTextContent(content []providers.ContentBlock) string {
+	var texts []string
+	for _, block := range content {
+		if block.Type == "text" && block.Text != "" {
+			texts = append(texts, block.Text)
+		}
+	}
+	return strings.Join(texts, "\n")
 }
