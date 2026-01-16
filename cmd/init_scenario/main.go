@@ -52,16 +52,16 @@ func main() {
 
 	// Create files
 	files := map[string]string{
-		"scenario.yaml":            scenarioYAML(name, description),
-		"system_prompt.md":         systemPromptMD(),
-		"prompt.md":                promptMD(description),
-		"prompts/beginner.md":      beginnerMD(description),
-		"prompts/intermediate.md":  intermediateMD(description),
-		"prompts/expert.md":        expertMD(description),
-		"prompts/terse.md":         terseMD(description),
-		"prompts/verbose.md":       verboseMD(description),
-		".gitignore":               gitignore(),
-		"expected/.gitkeep":        "",
+		"scenario.yaml":           scenarioYAML(name, description),
+		"system_prompt.md":        systemPromptMD(),
+		"prompt.md":               promptMD(description),
+		"prompts/beginner.md":     beginnerMD(description),
+		"prompts/intermediate.md": intermediateMD(description),
+		"prompts/expert.md":       expertMD(description),
+		"prompts/terse.md":        terseMD(description),
+		"prompts/verbose.md":      verboseMD(description),
+		".gitignore":              gitignore(),
+		"expected/.gitkeep":       "",
 	}
 
 	for filename, content := range files {
@@ -189,8 +189,8 @@ TODO: Brief technical requirements.
 
 ## Outputs
 
-- ` + "`TODO_output1.yaml`" + `: [brief spec]
-- ` + "`TODO_output2.yaml`" + `: [brief spec]
+- `+"`TODO_output1.yaml`"+`: [brief spec]
+- `+"`TODO_output2.yaml`"+`: [brief spec]
 
 ## Config
 

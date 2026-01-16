@@ -31,7 +31,7 @@ func main() {
 		AgentName: "wetwire-example-agent",
 		AgentPrompt: `You are a helpful infrastructure code assistant.
 Your job is to help users generate infrastructure code.`,
-		MCPCommand: "wetwire-aws", // The MCP server binary name
+		MCPCommand: "wetwire-aws",   // The MCP server binary name
 		MCPArgs:    []string{"mcp"}, // Subcommand to start MCP server
 		WorkDir:    ".",
 	})

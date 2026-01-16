@@ -343,11 +343,11 @@ type jsonResult struct {
 
 // streamEvent represents a single event from stream-json output
 type streamEvent struct {
-	Type    string          `json:"type"`
-	Subtype string          `json:"subtype,omitempty"`
-	Message *streamMessage  `json:"message,omitempty"`
-	Result  string          `json:"result,omitempty"`
-	IsError bool            `json:"is_error,omitempty"`
+	Type    string         `json:"type"`
+	Subtype string         `json:"subtype,omitempty"`
+	Message *streamMessage `json:"message,omitempty"`
+	Result  string         `json:"result,omitempty"`
+	IsError bool           `json:"is_error,omitempty"`
 }
 
 // streamMessage represents the message field in an assistant event
