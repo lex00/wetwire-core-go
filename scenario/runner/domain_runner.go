@@ -56,6 +56,12 @@ func NewDomainRunner(ctx context.Context, cfg DomainRunnerConfig) (*DomainRunner
 		output = os.Stdout
 	}
 
+	// Convert WorkDir to absolute path
+	absWorkDir, err := filepath.Abs(cfg.WorkDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve working directory: %w", err)
+	}
+
 	// Build MCP server config from domains
 	mcpServers := make(map[string]claude.MCPServerConfig)
 	for _, domain := range cfg.ScenarioConfig.Domains {
@@ -70,7 +76,7 @@ func NewDomainRunner(ctx context.Context, cfg DomainRunnerConfig) (*DomainRunner
 		mcpServers[domain.Name] = claude.MCPServerConfig{
 			Command: cliPath,
 			Args:    []string{"mcp"},
-			Cwd:     cfg.WorkDir,
+			Cwd:     absWorkDir,
 		}
 	}
 
@@ -78,8 +84,8 @@ func NewDomainRunner(ctx context.Context, cfg DomainRunnerConfig) (*DomainRunner
 		return nil, fmt.Errorf("no domains with CLI specified in scenario")
 	}
 
-	// Write MCP config to temp file
-	mcpConfigPath := filepath.Join(cfg.WorkDir, ".mcp-config.json")
+	// Write MCP config to temp file (use absolute path)
+	mcpConfigPath := filepath.Join(absWorkDir, ".mcp-config.json")
 	if err := claude.WriteMCPConfig(mcpConfigPath, mcpServers); err != nil {
 		return nil, fmt.Errorf("failed to write MCP config: %w", err)
 	}
@@ -95,7 +101,7 @@ func NewDomainRunner(ctx context.Context, cfg DomainRunnerConfig) (*DomainRunner
 
 	// Create Claude provider with MCP config
 	provider, err := claude.New(claude.Config{
-		WorkDir:        cfg.WorkDir,
+		WorkDir:        absWorkDir,
 		Model:          model,
 		MCPConfigPath:  mcpConfigPath,
 		AllowedTools:   allowedTools,
