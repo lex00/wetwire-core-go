@@ -219,6 +219,82 @@ writer := results.NewResultsWriter()
 writer.Write(session, "./RESULTS.md")
 ```
 
+## Implementing a Domain
+
+Domain packages implement the `domain.Domain` interface to get automatic CLI and MCP generation.
+
+### Required Interface
+
+```go
+import "github.com/lex00/wetwire-core-go/domain"
+
+type MyDomain struct{}
+
+// Compile-time check - fails if any method is missing
+var _ domain.Domain = (*MyDomain)(nil)
+
+func (d *MyDomain) Name() string    { return "mydomain" }
+func (d *MyDomain) Version() string { return "1.0.0" }
+func (d *MyDomain) Builder() domain.Builder       { return &MyBuilder{} }
+func (d *MyDomain) Linter() domain.Linter         { return &MyLinter{} }
+func (d *MyDomain) Initializer() domain.Initializer { return &MyInitializer{} }
+func (d *MyDomain) Validator() domain.Validator   { return &MyValidator{} }
+```
+
+### Usage
+
+```go
+func main() {
+    cli := domain.Run(&MyDomain{})
+    cli.Execute()
+}
+```
+
+This generates:
+- CLI with `build`, `lint`, `init`, `validate` commands
+- Persistent `--format` and `--verbose` flags
+
+### MCP Server
+
+```go
+server := domain.BuildMCPServer(&MyDomain{})
+server.Start()
+```
+
+This generates MCP tools: `wetwire_build`, `wetwire_lint`, `wetwire_init`, `wetwire_validate`
+
+### Optional Interfaces
+
+Domains may implement additional capabilities:
+
+```go
+// Import external configs
+func (d *MyDomain) Importer() domain.Importer { return &MyImporter{} }
+var _ domain.ImporterDomain = (*MyDomain)(nil)
+
+// List discovered resources
+func (d *MyDomain) Lister() domain.Lister { return &MyLister{} }
+var _ domain.ListerDomain = (*MyDomain)(nil)
+
+// Visualize dependencies
+func (d *MyDomain) Grapher() domain.Grapher { return &MyGrapher{} }
+var _ domain.GrapherDomain = (*MyDomain)(nil)
+```
+
+### Adding Custom Commands
+
+Domain-specific commands are added after `Run()`:
+
+```go
+func main() {
+    cli := domain.Run(&MyDomain{})
+    cli.AddCommand(newDesignCmd())  // AI-assisted design
+    cli.AddCommand(newTestCmd())    // Persona testing
+    cli.AddCommand(newMCPCmd())     // MCP server
+    cli.Execute()
+}
+```
+
 ## Documentation
 
 - [mcp/README.md](mcp/README.md) - MCP server and standard tools

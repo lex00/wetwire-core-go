@@ -6,12 +6,17 @@ Shared agent infrastructure for wetwire domain packages (Go).
 
 ```
 wetwire-core-go/
-└── agent/
-    ├── personas/      # 5 built-in developer personas
-    ├── scoring/       # 5-dimension evaluation rubric
-    ├── orchestrator/  # Developer/Runner coordination
-    ├── results/       # Session tracking, RESULTS.md generation
-    └── agents/        # DeveloperAgent, RunnerAgent
+├── domain/            # Domain interface for CLI/MCP generation
+├── mcp/               # MCP server and standard tools
+├── providers/         # AI provider abstraction (Anthropic, Claude, Kiro)
+├── agent/
+│   ├── personas/      # 5 built-in developer personas
+│   ├── scoring/       # 5-dimension evaluation rubric
+│   ├── orchestrator/  # Developer/Runner coordination
+│   ├── results/       # Session tracking, RESULTS.md generation
+│   └── agents/        # Unified Agent, legacy RunnerAgent
+├── scenario/          # Multi-domain scenario definitions
+└── cmd/               # CLI command framework
 ```
 
 ## Core Components
@@ -83,6 +88,34 @@ session.Complete()
 
 writer := results.NewWriter()
 writer.Write(session, "./output/RESULTS.md")
+```
+
+### Domain Package
+
+The `domain/` package provides the core interface for domain implementations:
+
+- `domain.Domain` — Required interface (Name, Version, Builder, Linter, Initializer, Validator)
+- `domain.ImporterDomain`, `domain.ListerDomain`, `domain.GrapherDomain` — Optional interfaces
+- `domain.Run(d Domain) *cobra.Command` — Generates CLI from Domain
+- `domain.BuildMCPServer(d Domain) *mcp.Server` — Generates MCP server from Domain
+
+Domain packages implement these interfaces instead of manually registering CLI commands and MCP tools:
+
+```go
+import "github.com/lex00/wetwire-core-go/domain"
+
+type MyDomain struct{}
+var _ domain.Domain = (*MyDomain)(nil)  // Compile-time check
+
+func (d *MyDomain) Name() string    { return "mydomain" }
+func (d *MyDomain) Version() string { return "1.0.0" }
+func (d *MyDomain) Builder() domain.Builder { return &MyBuilder{} }
+// ... other required methods
+
+func main() {
+    cli := domain.Run(&MyDomain{})
+    cli.Execute()
+}
 ```
 
 ## Integration Pattern
