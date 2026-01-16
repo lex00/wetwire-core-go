@@ -31,11 +31,11 @@ func getExamplesDir() string {
 // 4. Validate cross-domain references
 func TestIntegration_FullScenarioWorkflow(t *testing.T) {
 	examplesDir := getExamplesDir()
-	scenarioDir := filepath.Join(examplesDir, "aws_gitlab")
+	scenarioDir := filepath.Join(examplesDir, "cross_domain_ab")
 
 	// Skip if examples directory doesn't exist (e.g., in CI without examples)
 	if _, err := os.Stat(scenarioDir); os.IsNotExist(err) {
-		t.Skip("examples/aws_gitlab not found, skipping integration test")
+		t.Skip("examples/cross_domain_ab not found, skipping integration test")
 	}
 
 	t.Run("load and validate scenario", func(t *testing.T) {
@@ -44,18 +44,18 @@ func TestIntegration_FullScenarioWorkflow(t *testing.T) {
 		require.NoError(t, err, "should load scenario.yaml")
 
 		// Verify basic structure
-		assert.Equal(t, "aws_gitlab_s3_deploy", config.Name)
-		assert.Contains(t, config.Description, "S3 bucket")
+		assert.Equal(t, "cross_domain_ab_deploy", config.Name)
+		assert.Contains(t, config.Description, "bucket")
 
 		// Verify domains
 		require.Len(t, config.Domains, 2)
-		assert.Equal(t, "aws", config.Domains[0].Name)
-		assert.Equal(t, "gitlab", config.Domains[1].Name)
+		assert.Equal(t, "domain-a", config.Domains[0].Name)
+		assert.Equal(t, "domain-b", config.Domains[1].Name)
 
 		// Verify cross-domain relationships
 		require.Len(t, config.CrossDomain, 1)
-		assert.Equal(t, "aws", config.CrossDomain[0].From)
-		assert.Equal(t, "gitlab", config.CrossDomain[0].To)
+		assert.Equal(t, "domain-a", config.CrossDomain[0].From)
+		assert.Equal(t, "domain-b", config.CrossDomain[0].To)
 
 		// Validate scenario
 		result := scenario.Validate(config)
@@ -70,10 +70,10 @@ func TestIntegration_FullScenarioWorkflow(t *testing.T) {
 		order, err := scenario.GetDomainOrder(config)
 		require.NoError(t, err)
 
-		// AWS should come before GitLab (gitlab depends on aws)
+		// domain-a should come before domain-b (domain-b depends on domain-a)
 		require.Len(t, order, 2)
-		assert.Equal(t, "aws", order[0], "aws should be first (no dependencies)")
-		assert.Equal(t, "gitlab", order[1], "gitlab should be second (depends on aws)")
+		assert.Equal(t, "domain-a", order[0], "domain-a should be first (no dependencies)")
+		assert.Equal(t, "domain-b", order[1], "domain-b should be second (depends on domain-a)")
 	})
 
 	t.Run("skill generates instructions", func(t *testing.T) {
@@ -87,13 +87,13 @@ func TestIntegration_FullScenarioWorkflow(t *testing.T) {
 		output := buf.String()
 
 		// Should contain scenario name
-		assert.Contains(t, output, "aws_gitlab_s3_deploy")
+		assert.Contains(t, output, "cross_domain_ab_deploy")
 
 		// Should contain domain steps in correct order
 		assert.Contains(t, output, "Step 1")
-		assert.Contains(t, output, "aws")
+		assert.Contains(t, output, "domain-a")
 		assert.Contains(t, output, "Step 2")
-		assert.Contains(t, output, "gitlab")
+		assert.Contains(t, output, "domain-b")
 
 		// Should contain MCP tool references
 		assert.Contains(t, output, "wetwire_lint")
@@ -110,64 +110,64 @@ func TestIntegration_FullScenarioWorkflow(t *testing.T) {
 	t.Run("cross-domain validation with mock outputs", func(t *testing.T) {
 		// Create temporary output directory with mock generated files
 		tmpDir := t.TempDir()
-		awsDir := filepath.Join(tmpDir, "aws", "cfn-templates")
-		gitlabDir := filepath.Join(tmpDir, "gitlab")
+		domainADir := filepath.Join(tmpDir, "domain-a", "templates")
+		domainBDir := filepath.Join(tmpDir, "domain-b")
 
-		require.NoError(t, os.MkdirAll(awsDir, 0755))
-		require.NoError(t, os.MkdirAll(gitlabDir, 0755))
+		require.NoError(t, os.MkdirAll(domainADir, 0755))
+		require.NoError(t, os.MkdirAll(domainBDir, 0755))
 
-		// Create mock AWS CloudFormation templates
-		vpcTemplate := `{
-			"AWSTemplateFormatVersion": "2010-09-09",
-			"Description": "VPC Stack",
-			"Outputs": {
-				"VpcId": {"Value": {"Ref": "VPC"}, "Export": {"Name": "vpc-id"}}
+		// Create mock domain-a templates
+		resource1Template := `{
+			"version": "1.0",
+			"description": "Resource-1 Stack",
+			"outputs": {
+				"resource1_id": {"value": "r1-123", "export": {"name": "resource-1-id"}}
 			}
 		}`
-		eksTemplate := `{
-			"AWSTemplateFormatVersion": "2010-09-09",
-			"Description": "EKS Stack",
-			"Outputs": {
-				"ClusterName": {"Value": {"Ref": "EKSCluster"}, "Export": {"Name": "cluster-name"}}
+		resource2Template := `{
+			"version": "1.0",
+			"description": "Resource-2 Stack",
+			"outputs": {
+				"resource2_name": {"value": "r2-cluster", "export": {"name": "resource-2-name"}}
 			}
 		}`
-		rdsTemplate := `{
-			"AWSTemplateFormatVersion": "2010-09-09",
-			"Description": "RDS Stack",
-			"Outputs": {
-				"Endpoint": {"Value": {"Fn::GetAtt": ["Database", "Endpoint.Address"]}}
+		resource3Template := `{
+			"version": "1.0",
+			"description": "Resource-3 Stack",
+			"outputs": {
+				"endpoint": {"value": "r3.example.com"}
 			}
 		}`
 
-		require.NoError(t, os.WriteFile(filepath.Join(awsDir, "vpc.json"), []byte(vpcTemplate), 0644))
-		require.NoError(t, os.WriteFile(filepath.Join(awsDir, "eks.json"), []byte(eksTemplate), 0644))
-		require.NoError(t, os.WriteFile(filepath.Join(awsDir, "rds.json"), []byte(rdsTemplate), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(domainADir, "resource-1.json"), []byte(resource1Template), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(domainADir, "resource-2.json"), []byte(resource2Template), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(domainADir, "resource-3.json"), []byte(resource3Template), 0644))
 
-		// Create mock GitLab pipeline that references AWS outputs
-		gitlabPipeline := `
+		// Create mock domain-b config that references domain-a outputs
+		domainBConfig := `
 stages:
   - validate
   - deploy
   - test
 
 variables:
-  VPC_ID: "${aws.vpc.outputs.vpc_id}"
-  CLUSTER_NAME: "${aws.eks.outputs.cluster_name}"
-  DB_ENDPOINT: "${aws.rds.outputs.endpoint}"
+  RESOURCE1_ID: "${domain-a.resource-1.outputs.resource1_id}"
+  RESOURCE2_NAME: "${domain-a.resource-2.outputs.resource2_name}"
+  RESOURCE3_ENDPOINT: "${domain-a.resource-3.outputs.endpoint}"
 
 validate:
   stage: validate
   script:
-    - aws cloudformation validate-template --template-body file://vpc.json
+    - mock-cli-a validate --template-body file://resource-1.json
 
 deploy:
   stage: deploy
   script:
-    - aws cloudformation deploy --stack-name vpc --template-file vpc.json
-    - aws cloudformation deploy --stack-name eks --template-file eks.json
-    - aws cloudformation deploy --stack-name rds --template-file rds.json
+    - mock-cli-a deploy --stack-name resource-1 --template-file resource-1.json
+    - mock-cli-a deploy --stack-name resource-2 --template-file resource-2.json
+    - mock-cli-a deploy --stack-name resource-3 --template-file resource-3.json
 `
-		require.NoError(t, os.WriteFile(filepath.Join(gitlabDir, ".gitlab-ci.yml"), []byte(gitlabPipeline), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(domainBDir, "config.yml"), []byte(domainBConfig), 0644))
 
 		// Run cross-domain validation
 		ctx := context.Background()
@@ -183,8 +183,8 @@ deploy:
 		require.NoError(t, err)
 
 		// Verify domains were validated
-		assert.Contains(t, validationResult.DomainsValidated, "aws")
-		assert.Contains(t, validationResult.DomainsValidated, "gitlab")
+		assert.Contains(t, validationResult.DomainsValidated, "domain-a")
+		assert.Contains(t, validationResult.DomainsValidated, "domain-b")
 
 		// Verify cross-references were checked
 		assert.NotEmpty(t, validationResult.CrossReferences)
@@ -237,10 +237,10 @@ func TestIntegration_ValidationErrors(t *testing.T) {
 		config := &scenario.ScenarioConfig{
 			Name: "unknown_domain_test",
 			Domains: []scenario.DomainSpec{
-				{Name: "aws", CLI: "wetwire-aws"},
+				{Name: "domain-a", CLI: "mock-cli-a"},
 			},
 			CrossDomain: []scenario.CrossDomainSpec{
-				{From: "aws", To: "nonexistent", Type: "artifact_reference"},
+				{From: "domain-a", To: "nonexistent", Type: "artifact_reference"},
 			},
 		}
 
@@ -266,11 +266,11 @@ func TestIntegration_ComplexDependencyGraph(t *testing.T) {
 	config := &scenario.ScenarioConfig{
 		Name: "complex_deps",
 		Domains: []scenario.DomainSpec{
-			{Name: "app", CLI: "cli", DependsOn: []string{"k8s", "db"}},
-			{Name: "k8s", CLI: "cli", DependsOn: []string{"aws"}},
-			{Name: "db", CLI: "cli", DependsOn: []string{"aws"}},
-			{Name: "aws", CLI: "cli"},
-			{Name: "monitoring", CLI: "cli", DependsOn: []string{"app", "k8s"}},
+			{Name: "app", CLI: "cli", DependsOn: []string{"domain-c", "domain-d"}},
+			{Name: "domain-c", CLI: "cli", DependsOn: []string{"domain-a"}},
+			{Name: "domain-d", CLI: "cli", DependsOn: []string{"domain-a"}},
+			{Name: "domain-a", CLI: "cli"},
+			{Name: "monitoring", CLI: "cli", DependsOn: []string{"app", "domain-c"}},
 		},
 	}
 
@@ -289,21 +289,21 @@ func TestIntegration_ComplexDependencyGraph(t *testing.T) {
 	}
 
 	// Verify ordering constraints
-	assert.Less(t, indexOf("aws"), indexOf("k8s"), "aws must come before k8s")
-	assert.Less(t, indexOf("aws"), indexOf("db"), "aws must come before db")
-	assert.Less(t, indexOf("k8s"), indexOf("app"), "k8s must come before app")
-	assert.Less(t, indexOf("db"), indexOf("app"), "db must come before app")
+	assert.Less(t, indexOf("domain-a"), indexOf("domain-c"), "domain-a must come before domain-c")
+	assert.Less(t, indexOf("domain-a"), indexOf("domain-d"), "domain-a must come before domain-d")
+	assert.Less(t, indexOf("domain-c"), indexOf("app"), "domain-c must come before app")
+	assert.Less(t, indexOf("domain-d"), indexOf("app"), "domain-d must come before app")
 	assert.Less(t, indexOf("app"), indexOf("monitoring"), "app must come before monitoring")
-	assert.Less(t, indexOf("k8s"), indexOf("monitoring"), "k8s must come before monitoring")
+	assert.Less(t, indexOf("domain-c"), indexOf("monitoring"), "domain-c must come before monitoring")
 }
 
 // TestIntegration_RecordingWithTermsvg tests the termsvg recording functionality.
 func TestIntegration_RecordingWithTermsvg(t *testing.T) {
 	examplesDir := getExamplesDir()
-	scenarioDir := filepath.Join(examplesDir, "aws_gitlab")
+	scenarioDir := filepath.Join(examplesDir, "cross_domain_ab")
 
 	if _, err := os.Stat(scenarioDir); os.IsNotExist(err) {
-		t.Skip("examples/aws_gitlab not found, skipping integration test")
+		t.Skip("examples/cross_domain_ab not found, skipping integration test")
 	}
 
 	t.Run("CanRecord returns bool", func(t *testing.T) {
@@ -352,7 +352,7 @@ func TestIntegration_RecordingWithTermsvg(t *testing.T) {
 
 		// Record skill execution to SVG
 		// Note: skill must write to os.Stdout INSIDE the closure to be captured
-		err := scenario.RunWithRecording("aws_gitlab_skill", scenario.RecordOptions{
+		err := scenario.RunWithRecording("cross_domain_ab_skill", scenario.RecordOptions{
 			Enabled:   true,
 			OutputDir: tmpDir,
 		}, func() error {
@@ -365,7 +365,7 @@ func TestIntegration_RecordingWithTermsvg(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify SVG was created
-		svgPath := filepath.Join(tmpDir, "aws_gitlab_skill.svg")
+		svgPath := filepath.Join(tmpDir, "cross_domain_ab_skill.svg")
 		info, err := os.Stat(svgPath)
 		require.NoError(t, err, "SVG file should exist")
 		assert.Greater(t, info.Size(), int64(0), "SVG should have content")
@@ -373,7 +373,7 @@ func TestIntegration_RecordingWithTermsvg(t *testing.T) {
 		// Read SVG content to verify it contains scenario output
 		svgContent, err := os.ReadFile(svgPath)
 		require.NoError(t, err)
-		assert.Contains(t, string(svgContent), "aws_gitlab_s3_deploy")
+		assert.Contains(t, string(svgContent), "cross_domain_ab_deploy")
 	})
 
 	t.Run("RecordToSVG convenience function", func(t *testing.T) {
@@ -403,12 +403,12 @@ func TestIntegration_RecordingWithTermsvg(t *testing.T) {
 	t.Run("recorder config and paths", func(t *testing.T) {
 		config := scenario.RecorderConfig{
 			OutputDir:    "/tmp/recordings",
-			ScenarioName: "aws_gitlab_deployment",
+			ScenarioName: "cross_domain_ab_deployment",
 		}
 
 		recorder := scenario.NewRecorder(config)
 
-		assert.Equal(t, "/tmp/recordings/aws_gitlab_deployment.svg", recorder.OutputPath())
-		assert.Equal(t, "/tmp/recordings/aws_gitlab_deployment.cast", recorder.CastPath())
+		assert.Equal(t, "/tmp/recordings/cross_domain_ab_deployment.svg", recorder.OutputPath())
+		assert.Equal(t, "/tmp/recordings/cross_domain_ab_deployment.cast", recorder.CastPath())
 	})
 }

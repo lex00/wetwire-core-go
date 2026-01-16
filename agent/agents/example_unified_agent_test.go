@@ -122,12 +122,12 @@ func Example_unifiedAgent_migration() {
 
 	// 1. Create MCP server and register tools
 	mcpServer := mcp.NewServer(mcp.Config{
-		Name:    "wetwire-aws",
+		Name:    "mock-cli-a",
 		Version: "1.0.0",
 	})
 
 	// Register standard wetwire tools
-	mcp.RegisterStandardTools(mcpServer, "aws", mcp.StandardToolHandlers{
+	mcp.RegisterStandardTools(mcpServer, "domain-a", mcp.StandardToolHandlers{
 		Init: func(ctx context.Context, args map[string]any) (string, error) {
 			// Implementation
 			return "Initialized", nil
@@ -152,8 +152,8 @@ func Example_unifiedAgent_migration() {
 		Provider:  provider,
 		MCPServer: agents.NewMCPServerAdapter(mcpServer),
 		Session:   session,
-		SystemPrompt: `You are an infrastructure code generator using wetwire-aws.
-Your job is to generate Go code that defines AWS CloudFormation resources.`,
+		SystemPrompt: `You are an infrastructure code generator using mock-cli-a.
+Your job is to generate code that defines domain resources.`,
 	})
 
 	// 4. Run

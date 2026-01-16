@@ -16,18 +16,18 @@ func TestGenerateInstructions(t *testing.T) {
 		Description: "Test infrastructure",
 		Domains: []scenario.DomainSpec{
 			{
-				Name: "aws",
-				CLI:  "wetwire-aws",
+				Name: "domain-a",
+				CLI:  "mock-cli-a",
 				MCPTools: map[string]string{
 					"lint":  "wetwire_lint",
 					"build": "wetwire_build",
 				},
-				Outputs: []string{"cfn-templates/*.json"},
+				Outputs: []string{"templates/*.json"},
 			},
 			{
-				Name:      "gitlab",
-				CLI:       "wetwire-gitlab",
-				DependsOn: []string{"aws"},
+				Name:      "domain-b",
+				CLI:       "mock-cli-b",
+				DependsOn: []string{"domain-a"},
 				MCPTools: map[string]string{
 					"lint":  "wetwire_lint",
 					"build": "wetwire_build",
@@ -36,13 +36,13 @@ func TestGenerateInstructions(t *testing.T) {
 		},
 		CrossDomain: []scenario.CrossDomainSpec{
 			{
-				From: "aws",
-				To:   "gitlab",
+				From: "domain-a",
+				To:   "domain-b",
 				Type: "artifact_reference",
 			},
 		},
 		Validation: map[string]scenario.ValidationRules{
-			"aws": {
+			"domain-a": {
 				Stacks: &scenario.CountConstraint{Min: 2},
 			},
 		},
@@ -62,13 +62,13 @@ func TestGenerateInstructions(t *testing.T) {
 	assert.Contains(t, output, "Generate infrastructure code")
 
 	// Should contain domain steps in correct order
-	assert.Contains(t, output, "aws")
-	assert.Contains(t, output, "gitlab")
+	assert.Contains(t, output, "domain-a")
+	assert.Contains(t, output, "domain-b")
 
-	// aws should come before gitlab
-	awsIdx := bytes.Index([]byte(output), []byte("Step 1"))
-	gitlabIdx := bytes.Index([]byte(output), []byte("Step 2"))
-	assert.Less(t, awsIdx, gitlabIdx)
+	// domain-a should come before domain-b
+	domainAIdx := bytes.Index([]byte(output), []byte("Step 1"))
+	domainBIdx := bytes.Index([]byte(output), []byte("Step 2"))
+	assert.Less(t, domainAIdx, domainBIdx)
 
 	// Should contain MCP tool instructions
 	assert.Contains(t, output, "wetwire_lint")
@@ -84,11 +84,11 @@ func TestGenerateInstructions(t *testing.T) {
 
 func TestGenerateInstructionsSingleDomain(t *testing.T) {
 	config := &scenario.ScenarioConfig{
-		Name: "simple_aws",
+		Name: "simple_scenario",
 		Domains: []scenario.DomainSpec{
 			{
-				Name: "aws",
-				CLI:  "wetwire-aws",
+				Name: "domain-a",
+				CLI:  "mock-cli-a",
 				MCPTools: map[string]string{
 					"lint": "wetwire_lint",
 				},
@@ -101,8 +101,8 @@ func TestGenerateInstructionsSingleDomain(t *testing.T) {
 	require.NoError(t, err)
 
 	output := buf.String()
-	assert.Contains(t, output, "simple_aws")
-	assert.Contains(t, output, "aws")
+	assert.Contains(t, output, "simple_scenario")
+	assert.Contains(t, output, "domain-a")
 	assert.Contains(t, output, "wetwire_lint")
 
 	// Should not contain cross-domain step
@@ -117,7 +117,7 @@ func TestGenerateInstructionsWithPromptVariants(t *testing.T) {
 			Variants: map[string]string{"minimal": "minimal.md"},
 		},
 		Domains: []scenario.DomainSpec{
-			{Name: "aws", CLI: "wetwire-aws"},
+			{Name: "domain-a", CLI: "mock-cli-a"},
 		},
 	}
 
@@ -138,9 +138,9 @@ func TestGenerateInstructionsMultipleDependencies(t *testing.T) {
 	config := &scenario.ScenarioConfig{
 		Name: "complex",
 		Domains: []scenario.DomainSpec{
-			{Name: "vpc", CLI: "wetwire-aws"},
-			{Name: "eks", CLI: "wetwire-aws", DependsOn: []string{"vpc"}},
-			{Name: "app", CLI: "wetwire-k8s", DependsOn: []string{"eks"}},
+			{Name: "resource-1", CLI: "mock-cli-a"},
+			{Name: "resource-2", CLI: "mock-cli-a", DependsOn: []string{"resource-1"}},
+			{Name: "app", CLI: "mock-cli-c", DependsOn: []string{"resource-2"}},
 		},
 	}
 
@@ -150,23 +150,23 @@ func TestGenerateInstructionsMultipleDependencies(t *testing.T) {
 
 	output := buf.String()
 
-	// Should have correct order: vpc -> eks -> app
-	vpcIdx := bytes.Index([]byte(output), []byte("vpc"))
-	eksIdx := bytes.Index([]byte(output), []byte("eks"))
+	// Should have correct order: resource-1 -> resource-2 -> app
+	res1Idx := bytes.Index([]byte(output), []byte("resource-1"))
+	res2Idx := bytes.Index([]byte(output), []byte("resource-2"))
 	appIdx := bytes.Index([]byte(output), []byte("app"))
 
-	assert.Less(t, vpcIdx, eksIdx, "vpc should come before eks")
-	assert.Less(t, eksIdx, appIdx, "eks should come before app")
+	assert.Less(t, res1Idx, res2Idx, "resource-1 should come before resource-2")
+	assert.Less(t, res2Idx, appIdx, "resource-2 should come before app")
 }
 
 func TestGenerateInstructionsValidationOutput(t *testing.T) {
 	config := &scenario.ScenarioConfig{
 		Name: "validated",
 		Domains: []scenario.DomainSpec{
-			{Name: "aws", CLI: "wetwire-aws"},
+			{Name: "domain-a", CLI: "mock-cli-a"},
 		},
 		Validation: map[string]scenario.ValidationRules{
-			"aws": {
+			"domain-a": {
 				Stacks:    &scenario.CountConstraint{Min: 3, Max: 10},
 				Resources: &scenario.CountConstraint{Min: 5},
 			},
@@ -195,13 +195,13 @@ func TestGenerateInstructionsEmptyConfig(t *testing.T) {
 
 func TestFormatDomainStep(t *testing.T) {
 	domain := &scenario.DomainSpec{
-		Name: "aws",
-		CLI:  "wetwire-aws",
+		Name: "domain-a",
+		CLI:  "mock-cli-a",
 		MCPTools: map[string]string{
 			"lint":  "wetwire_lint",
 			"build": "wetwire_build",
 		},
-		Outputs: []string{"cfn-templates/*.json"},
+		Outputs: []string{"templates/*.json"},
 	}
 
 	var buf bytes.Buffer
@@ -209,19 +209,19 @@ func TestFormatDomainStep(t *testing.T) {
 
 	output := buf.String()
 	assert.Contains(t, output, "Step 1")
-	assert.Contains(t, output, "aws")
-	assert.Contains(t, output, "wetwire-aws")
+	assert.Contains(t, output, "domain-a")
+	assert.Contains(t, output, "mock-cli-a")
 	assert.Contains(t, output, "wetwire_lint")
 	assert.Contains(t, output, "wetwire_build")
-	assert.Contains(t, output, "cfn-templates/*.json")
+	assert.Contains(t, output, "templates/*.json")
 }
 
 func TestFormatValidationCriteria(t *testing.T) {
 	validation := map[string]scenario.ValidationRules{
-		"aws": {
+		"domain-a": {
 			Stacks: &scenario.CountConstraint{Min: 2, Max: 5},
 		},
-		"gitlab": {
+		"domain-b": {
 			Pipelines: &scenario.CountConstraint{Min: 1},
 		},
 	}
@@ -230,10 +230,10 @@ func TestFormatValidationCriteria(t *testing.T) {
 	FormatValidationCriteria(&buf, validation)
 
 	output := buf.String()
-	assert.Contains(t, output, "aws")
+	assert.Contains(t, output, "domain-a")
 	assert.Contains(t, output, "Stacks")
 	assert.Contains(t, output, "2")
 	assert.Contains(t, output, "5")
-	assert.Contains(t, output, "gitlab")
+	assert.Contains(t, output, "domain-b")
 	assert.Contains(t, output, "Pipelines")
 }

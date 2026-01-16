@@ -17,11 +17,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestToolRunLint_CommandNotFound tests handling when wetwire-aws is not installed
+// TestToolRunLint_CommandNotFound tests handling when mock-cli-a is not installed
 func TestToolRunLint_CommandNotFound(t *testing.T) {
-	// Skip if wetwire-aws is actually installed
-	if _, err := exec.LookPath("wetwire-aws"); err == nil {
-		t.Skip("wetwire-aws is installed, skipping not-found test")
+	// Skip if mock-cli-a is actually installed
+	if _, err := exec.LookPath("mock-cli-a"); err == nil {
+		t.Skip("mock-cli-a is installed, skipping not-found test")
 	}
 
 	dir := t.TempDir()
@@ -48,8 +48,8 @@ func TestToolRunLint_CommandNotFound(t *testing.T) {
 func TestToolRunLint_InvalidJSON(t *testing.T) {
 	dir := t.TempDir()
 
-	// Create a mock wetwire-aws script that outputs invalid JSON
-	mockScript := filepath.Join(dir, "mock-wetwire-aws")
+	// Create a mock domain CLI script that outputs invalid JSON
+	mockScript := filepath.Join(dir, "mock-domain-cli")
 	scriptContent := `#!/bin/bash
 echo "This is not valid JSON"
 exit 2
@@ -110,7 +110,7 @@ func TestToolRunBuild_TemplateExtraction(t *testing.T) {
 		workDir: dir,
 	}
 
-	// Create a valid package structure (if wetwire-aws is available)
+	// Create a valid package structure (if domain CLI is available)
 	pkgDir := filepath.Join(dir, "testpkg")
 	os.MkdirAll(pkgDir, 0755)
 
@@ -256,7 +256,7 @@ func TestEndToEnd_LintFixLoop(t *testing.T) {
 	// 1. Setting up a scenario that produces lint errors
 	// 2. Ensuring the agent attempts to fix them
 	// 3. Verifying it stops at max cycles
-	t.Skip("Lint fix loop test requires full wetwire-aws integration")
+	t.Skip("Lint fix loop test requires full domain CLI integration")
 }
 
 // TestEndToEnd_SessionTimeout tests enforcement of session timeout
