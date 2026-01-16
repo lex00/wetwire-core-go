@@ -1,0 +1,117 @@
+stages:
+  - validate
+  - publish
+
+variables:
+  AWS_REGION: us-east-1
+  TEMPLATE_FILE: s3-bucket-template.yaml
+  STACK_NAME: s3-bucket-stack
+
+# Template validation job
+validate_template:
+  stage: validate
+  image: amazon/aws-cli:latest
+  script:
+    - echo "Validating CloudFormation template..."
+    - aws cloudformation validate-template --template-body file://${TEMPLATE_FILE} --region ${AWS_REGION}
+    - echo "✓ Template validation passed"
+  only:
+    - merge_requests
+    - main
+    - develop
+  artifacts:
+    reports:
+      dotenv: validation.env
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+
+# Lint CloudFormation template using cfn-lint
+lint_template:
+  stage: validate
+  image: python:3.11-slim
+  before_script:
+    - pip install cfn-lint
+  script:
+    - echo "Linting CloudFormation template..."
+    - cfn-lint ${TEMPLATE_FILE} --format parseable
+    - echo "✓ Lint checks passed"
+  only:
+    - merge_requests
+    - main
+    - develop
+  allow_failure: false
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+
+# Policy check using cfn-lint security rules
+policy_check:
+  stage: validate
+  image: python:3.11-slim
+  before_script:
+    - pip install cfn-lint
+  script:
+    - echo "Checking CloudFormation security policies..."
+    - cfn-lint ${TEMPLATE_FILE} --include-checks W E
+    - echo "✓ Security policy checks passed"
+  only:
+    - merge_requests
+    - main
+    - develop
+  allow_failure: false
+
+# Publish template to S3 (runs manually or on main branch)
+publish_template:
+  stage: publish
+  image: amazon/aws-cli:latest
+  script:
+    - echo "Publishing CloudFormation template to S3..."
+    - TEMPLATE_BUCKET="cloudformation-templates-${AWS_ACCOUNT_ID}-${AWS_REGION}"
+    - TEMPLATE_KEY="s3-bucket/${CI_COMMIT_SHORT_SHA}/${TEMPLATE_FILE}"
+    - aws s3 cp ${TEMPLATE_FILE} s3://${TEMPLATE_BUCKET}/${TEMPLATE_KEY} --region ${AWS_REGION} --sse AES256
+    - TEMPLATE_URL="https://${TEMPLATE_BUCKET}.s3.${AWS_REGION}.amazonaws.com/${TEMPLATE_KEY}"
+    - echo "Template published to: ${TEMPLATE_URL}"
+    - echo "TEMPLATE_URL=${TEMPLATE_URL}" > publish.env
+    - echo "TEMPLATE_BUCKET=${TEMPLATE_BUCKET}" >> publish.env
+    - echo "TEMPLATE_KEY=${TEMPLATE_KEY}" >> publish.env
+  artifacts:
+    reports:
+      dotenv: publish.env
+    paths:
+      - publish.env
+    expire_in: 30 days
+  environment:
+    name: aws-s3
+    url: $TEMPLATE_URL
+  only:
+    - main
+    - tags
+  when: manual
+  dependencies:
+    - validate_template
+    - lint_template
+    - policy_check
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+
+# Optional: Create changelog on tag
+publish_release:
+  stage: publish
+  image: alpine:latest
+  script:
+    - echo "CloudFormation S3 Bucket Template v${CI_COMMIT_TAG}"
+    - echo "Git Commit: ${CI_COMMIT_SHA}"
+    - echo "Template: s3-bucket-template.yaml"
+  only:
+    - tags
+  when: manual
+  dependencies:
+    - publish_template

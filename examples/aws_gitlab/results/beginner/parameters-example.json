@@ -1,0 +1,34 @@
+{
+  "Parameters": [
+    {
+      "ParameterKey": "BucketName",
+      "ParameterValue": "my-secure-bucket-001"
+    },
+    {
+      "ParameterKey": "Environment",
+      "ParameterValue": "dev"
+    },
+    {
+      "ParameterKey": "EnableVersioning",
+      "ParameterValue": "true"
+    },
+    {
+      "ParameterKey": "EnableLogging",
+      "ParameterValue": "true"
+    }
+  ],
+  "Tags": [
+    {
+      "Key": "Project",
+      "Value": "wetwire-core-go"
+    },
+    {
+      "Key": "CostCenter",
+      "Value": "engineering"
+    },
+    {
+      "Key": "ManagedBy",
+      "Value": "CloudFormation"
+    }
+  ]
+}

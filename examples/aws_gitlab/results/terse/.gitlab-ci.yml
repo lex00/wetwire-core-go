@@ -1,0 +1,24 @@
+stages:
+  - validate
+  - publish
+
+variables:
+  AWS_REGION: us-east-1
+
+validate:cfn:
+  stage: validate
+  image: amazon/aws-cli:latest
+  script:
+    - aws cloudformation validate-template --template-body file://bucket.yaml --region ${AWS_REGION}
+  only:
+    - merge_requests
+    - branches
+
+publish:s3:
+  stage: publish
+  image: amazon/aws-cli:latest
+  script:
+    - aws s3 cp bucket.yaml s3://${ARTIFACT_BUCKET}/cfn/bucket.yaml --region ${AWS_REGION}
+  only:
+    - main
+  when: manual

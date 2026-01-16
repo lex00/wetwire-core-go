@@ -1,0 +1,133 @@
+stages:
+  - validate
+  - publish
+  - release
+
+variables:
+  AWS_DEFAULT_REGION: us-east-1
+  CFN_TEMPLATES_DIR: cfn-templates
+  TEMPLATES_BUCKET: !{aws.s3.outputs.bucket_name}
+  ARTIFACT_RETENTION: 30 days
+
+default:
+  image: amazon/aws-cli:latest
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+  tags:
+    - docker
+
+# Validate CloudFormation templates
+validate:cfn:
+  stage: validate
+  script:
+    - echo "Validating CloudFormation templates..."
+    - |
+      for template in ${CFN_TEMPLATES_DIR}/*.yaml; do
+        echo "Validating $template..."
+        aws cloudformation validate-template --template-body file://$template
+        if [ $? -ne 0 ]; then
+          echo "✗ Template validation failed: $template"
+          exit 1
+        fi
+        echo "✓ Template validation passed: $template"
+      done
+  artifacts:
+    reports:
+      dotenv: cfn.env
+    expire_in: $ARTIFACT_RETENTION
+  only:
+    - branches
+    - merge_requests
+
+# Lint templates for best practices
+lint:cfn:
+  stage: validate
+  image: node:18-alpine
+  before_script:
+    - npm install -g cfn-lint
+  script:
+    - echo "Linting CloudFormation templates..."
+    - |
+      for template in ${CFN_TEMPLATES_DIR}/*.yaml; do
+        echo "Linting $template..."
+        cfn-lint $template
+        if [ $? -ne 0 ]; then
+          echo "✗ Linting failed: $template"
+          exit 1
+        fi
+        echo "✓ Linting passed: $template"
+      done
+  only:
+    - branches
+    - merge_requests
+
+# Publish templates to S3
+publish:templates:
+  stage: publish
+  environment:
+    name: templates-bucket
+    deployment_tier: production
+  script:
+    - echo "Publishing CloudFormation templates to S3..."
+    - |
+      for template in ${CFN_TEMPLATES_DIR}/*.yaml; do
+        basename=$(basename $template)
+        s3_path="s3://${TEMPLATES_BUCKET}/cfn-templates/${CI_COMMIT_REF_SLUG}/${CI_COMMIT_SHA:0:8}/$basename"
+        echo "Publishing $basename to $s3_path"
+        aws s3 cp $template $s3_path \
+          --sse AES256 \
+          --metadata "commit=${CI_COMMIT_SHA},branch=${CI_COMMIT_REF_SLUG},pipeline=${CI_PIPELINE_ID}" \
+          --storage-class STANDARD_IA
+        if [ $? -ne 0 ]; then
+          echo "✗ Failed to publish $basename"
+          exit 1
+        fi
+        echo "✓ Published $basename"
+      done
+    - echo "PUBLISHED_S3_PATH=s3://${TEMPLATES_BUCKET}/cfn-templates/${CI_COMMIT_REF_SLUG}/${CI_COMMIT_SHA:0:8}" >> publish.env
+  artifacts:
+    reports:
+      dotenv: publish.env
+    expire_in: $ARTIFACT_RETENTION
+  only:
+    - main
+    - master
+    - tags
+
+# Create GitLab release with version tag
+release:create:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  script:
+    - echo "Creating release for version ${CI_COMMIT_TAG}"
+    - |
+      release-cli create \
+        --name "CloudFormation Templates - ${CI_COMMIT_TAG}" \
+        --description "CloudFormation templates published to S3 bucket: ${TEMPLATES_BUCKET}" \
+        --tag-name "${CI_COMMIT_TAG}" \
+        --ref "${CI_COMMIT_SHA}"
+  environment:
+    name: release
+    deployment_tier: production
+  only:
+    - tags
+
+# Cleanup old template versions
+cleanup:old-versions:
+  stage: publish
+  script:
+    - echo "Cleaning up template versions older than 30 days..."
+    - |
+      cutoff_date=$(date -d "30 days ago" +%Y-%m-%d)
+      aws s3 ls s3://${TEMPLATES_BUCKET}/cfn-templates/ --recursive | \
+        awk -v cutoff="$cutoff_date" '$1 < cutoff {print $4}' | \
+        while read -r key; do
+          echo "Deleting old version: $key"
+          aws s3 rm "s3://${TEMPLATES_BUCKET}/$key"
+        done
+  only:
+    - schedules
+  allow_failure: true

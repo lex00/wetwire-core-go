@@ -1,0 +1,88 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  CloudFormation template for creating a secure S3 bucket with versioning,
+  encryption, and public access restrictions. This template is designed to be
+  published via GitLab CI/CD pipeline and consumed by other infrastructure stacks.
+
+Parameters:
+  Environment:
+    Type: String
+    Description: Deployment environment
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    ConstraintDescription: Must be one of dev, staging, or prod
+
+  BucketNameSuffix:
+    Type: String
+    Description: >
+      Suffix for the S3 bucket name. The final bucket name will be
+      s3-bucket-{Environment}-{BucketNameSuffix}. Must contain only lowercase
+      alphanumeric characters and hyphens.
+    AllowedPattern: ^[a-z0-9-]+$
+    ConstraintDescription: Must contain only lowercase alphanumeric characters and hyphens
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Configuration
+        Parameters:
+          - Environment
+          - BucketNameSuffix
+    ParameterLabels:
+      Environment:
+        default: Environment Name
+      BucketNameSuffix:
+        default: Bucket Name Suffix
+
+Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 's3-bucket-${Environment}-${BucketNameSuffix}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Template
+          Value: s3-bucket
+
+Outputs:
+  BucketName:
+    Description: The name of the S3 bucket
+    Value: !Ref S3Bucket
+    Export:
+      Name: !Sub '${AWS::StackName}-BucketName'
+
+  BucketArn:
+    Description: The Amazon Resource Name (ARN) of the S3 bucket
+    Value: !GetAtt S3Bucket.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-BucketArn'
+
+  BucketRegion:
+    Description: The AWS region where the bucket was created
+    Value: !Ref AWS::Region
+    Export:
+      Name: !Sub '${AWS::StackName}-BucketRegion'
+
+  BucketDomainName:
+    Description: The domain name of the S3 bucket
+    Value: !GetAtt S3Bucket.DomainName
+    Export:
+      Name: !Sub '${AWS::StackName}-BucketDomainName'

@@ -1,5 +1,2 @@
-# Scenario run outputs
-results/
-
 # SVG recordings (large files, generate with --record flag)
 *.svg
