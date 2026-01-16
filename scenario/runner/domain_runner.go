@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -61,8 +62,13 @@ func NewDomainRunner(ctx context.Context, cfg DomainRunnerConfig) (*DomainRunner
 		if domain.CLI == "" {
 			continue
 		}
+		// Resolve CLI path to full path
+		cliPath, err := resolveCLIPath(domain.CLI)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve CLI path for %s: %w", domain.Name, err)
+		}
 		mcpServers[domain.Name] = claude.MCPServerConfig{
-			Command: domain.CLI,
+			Command: cliPath,
 			Args:    []string{"mcp"},
 			Cwd:     cfg.WorkDir,
 		}
@@ -237,4 +243,40 @@ func buildDomainSystemPrompt(config *scenario.ScenarioConfig) string {
 	}
 
 	return sb.String()
+}
+
+// resolveCLIPath attempts to find the full path to a CLI command.
+// It first tries exec.LookPath, then checks common Go binary locations.
+func resolveCLIPath(cli string) (string, error) {
+	// If it's already an absolute path, use it
+	if filepath.IsAbs(cli) {
+		if _, err := os.Stat(cli); err == nil {
+			return cli, nil
+		}
+		return "", fmt.Errorf("CLI not found at path: %s", cli)
+	}
+
+	// Try to find in PATH
+	if path, err := exec.LookPath(cli); err == nil {
+		return path, nil
+	}
+
+	// Try common Go binary locations
+	homeDir, err := os.UserHomeDir()
+	if err == nil {
+		goPathBin := filepath.Join(homeDir, "go", "bin", cli)
+		if _, err := os.Stat(goPathBin); err == nil {
+			return goPathBin, nil
+		}
+	}
+
+	// Try GOPATH/bin
+	if goPath := os.Getenv("GOPATH"); goPath != "" {
+		goPathBin := filepath.Join(goPath, "bin", cli)
+		if _, err := os.Stat(goPathBin); err == nil {
+			return goPathBin, nil
+		}
+	}
+
+	return "", fmt.Errorf("CLI %q not found in PATH or common Go binary locations", cli)
 }
