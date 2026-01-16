@@ -10,18 +10,20 @@ Shared agent infrastructure for wetwire domain packages.
 
 ## Overview
 
-wetwire-core-go provides the AI agent framework used by wetwire domain packages (like wetwire-aws-go). It includes:
+wetwire-core-go provides the AI agent framework used by wetwire domain packages (like wetwire-honeycomb-go). It includes:
 
+- **agents** - Unified Agent architecture with MCP tool integration
+- **mcp** - MCP server for Claude Code integration with standard tool definitions
+- **providers** - AI provider abstraction (Anthropic API, Kiro/Claude Code)
 - **personas** - Developer persona definitions (Beginner, Intermediate, Expert, Terse, Verbose)
 - **scoring** - 5-dimension evaluation rubric (0-15 scale)
 - **results** - Session tracking and RESULTS.md generation
 - **orchestrator** - Developer/Runner agent coordination
-- **agents** - Anthropic SDK integration and RunnerAgent
 - **scenario** - Multi-domain scenario definitions with cross-domain validation
 - **recording** - Animated SVG recordings of user/agent conversations
-- **version** - Version info exposure via runtime/debug for dependent packages
-- **cmd** - CLI command framework with cobra for consistent CLIs across domain packages
-- **serialize** - Struct-to-map conversion and JSON/YAML serialization with naming conventions
+- **version** - Version info exposure via runtime/debug
+- **cmd** - CLI command framework with cobra
+- **serialize** - Struct-to-map conversion and JSON/YAML serialization
 
 ## Installation
 
@@ -29,93 +31,190 @@ wetwire-core-go provides the AI agent framework used by wetwire domain packages 
 go get github.com/lex00/wetwire-core-go
 ```
 
-## Usage
+## Quick Start
 
-wetwire-core-go is typically used as a dependency of domain packages like wetwire-aws-go.
+### Unified Agent (Recommended)
 
-### Personas
+The unified Agent is the recommended pattern for all domain packages:
 
 ```go
-import "github.com/lex00/wetwire-core-go/agent/personas"
+import (
+    "github.com/lex00/wetwire-core-go/agent/agents"
+    "github.com/lex00/wetwire-core-go/mcp"
+    "github.com/lex00/wetwire-core-go/providers/anthropic"
+)
 
-// Get a built-in persona
-persona, err := personas.Get("beginner")
-if err != nil {
-    log.Fatal(err)
+// 1. Create MCP server with tools
+mcpServer := mcp.NewServer(mcp.Config{
+    Name:    "wetwire-mydomain",
+    Version: "1.0.0",
+})
+
+// 2. Register standard tools
+mcp.RegisterStandardToolsWithDefaults(mcpServer, "mydomain", mcp.StandardToolHandlers{
+    Init:  myInitHandler,
+    Build: myBuildHandler,
+    Lint:  myLintHandler,
+})
+
+// 3. Create provider
+provider, _ := anthropic.New(anthropic.Config{})
+
+// 4. Create unified Agent
+agent, _ := agents.NewAgent(agents.AgentConfig{
+    Provider:     provider,
+    MCPServer:    agents.NewMCPServerAdapter(mcpServer),
+    SystemPrompt: "You are an infrastructure code generator...",
+    Developer:    developer,  // nil for autonomous mode
+})
+
+// 5. Run
+agent.Run(ctx, "Create an S3 bucket with versioning")
+```
+
+### MCP Server for Claude Code
+
+Expose tools to Claude Code via MCP:
+
+```go
+import "github.com/lex00/wetwire-core-go/mcp"
+
+server := mcp.NewServer(mcp.Config{
+    Name:    "wetwire-mydomain",
+    Version: "1.0.0",
+})
+
+mcp.RegisterStandardToolsWithDefaults(server, "mydomain", handlers)
+server.Start(context.Background())  // Runs on stdio
+```
+
+### Provider Abstraction
+
+Same code works with different AI backends:
+
+```go
+import (
+    "github.com/lex00/wetwire-core-go/providers"
+    "github.com/lex00/wetwire-core-go/providers/anthropic"
+    "github.com/lex00/wetwire-core-go/providers/kiro"
+)
+
+var provider providers.Provider
+
+if useClaudeCode {
+    provider, _ = kiro.New(kiro.Config{...})
+} else {
+    provider, _ = anthropic.New(anthropic.Config{})
 }
+
+// Same API for both
+resp, _ := provider.CreateMessage(ctx, req)
+```
+
+## Examples
+
+| Example | Description |
+|---------|-------------|
+| [unified_agent](examples/unified_agent/) | Unified Agent with MCP tools (recommended pattern) |
+| [mcp_server](examples/mcp_server/) | MCP server for Claude Code integration |
+| [kiro_provider](examples/kiro_provider/) | Using Kiro provider with Claude Code |
+| [aws_gitlab](examples/aws_gitlab/) | Multi-domain scenario example |
+
+## Package Reference
+
+### agents
+
+```go
+// Create unified Agent
+agent, _ := agents.NewAgent(agents.AgentConfig{
+    Provider:     provider,
+    MCPServer:    mcpServer,
+    SystemPrompt: "...",
+    Developer:    developer,  // nil for autonomous mode
+    Session:      session,    // optional, for result tracking
+})
+
+// Wrap MCP server for Agent
+adapter := agents.NewMCPServerAdapter(mcpServer)
+```
+
+### mcp
+
+```go
+// Create server
+server := mcp.NewServer(mcp.Config{Name: "domain", Version: "1.0.0"})
+
+// Register tools with default file handlers
+mcp.RegisterStandardToolsWithDefaults(server, "domain", handlers)
+
+// In-process tool execution (for Agent)
+result, _ := server.ExecuteTool(ctx, "tool_name", args)
+tools := server.GetTools()
+```
+
+### providers
+
+```go
+// Anthropic (direct API)
+provider, _ := anthropic.New(anthropic.Config{APIKey: "..."})
+
+// Kiro (Claude Code backend)
+provider, _ := kiro.New(kiro.Config{AgentName: "...", MCPCommand: "..."})
+
+// Both implement providers.Provider interface
+resp, _ := provider.CreateMessage(ctx, req)
+resp, _ := provider.StreamMessage(ctx, req, handler)
+```
+
+### personas
+
+```go
+persona, _ := personas.Get("beginner")  // beginner, intermediate, expert, terse, verbose
 fmt.Println(persona.Name, persona.Description)
 ```
 
-### RunnerAgent
+### results
 
 ```go
-import "github.com/lex00/wetwire-core-go/agent/agents"
-
-config := agents.RunnerConfig{
-    WorkDir:       "./output",
-    MaxLintCycles: 3,
-    Session:       session,        // Optional: for result tracking
-    Developer:     developer,      // Required: responds to questions
-    StreamHandler: func(text string) { fmt.Print(text) }, // Optional
-}
-
-runner, err := agents.NewRunnerAgent(config)
-if err != nil {
-    log.Fatal(err)
-}
-
-err = runner.Run(ctx, "Create an S3 bucket with versioning")
-```
-
-### Session Results
-
-```go
-import "github.com/lex00/wetwire-core-go/agent/results"
-
-session := results.NewSession("aws", "my_bucket", "Create a bucket")
-// ... run agent workflow ...
+session := results.NewSession("domain", "scenario")
 session.Complete()
-
 writer := results.NewResultsWriter()
-writer.Write(session, "./output/RESULTS.md")
+writer.Write(session, "./RESULTS.md")
 ```
 
-### Version
+## Documentation
+
+- [mcp/README.md](mcp/README.md) - MCP server and standard tools
+- [docs/KIRO_PROVIDER.md](docs/KIRO_PROVIDER.md) - Kiro provider for Claude Code
+- [docs/SCENARIOS.md](docs/SCENARIOS.md) - Multi-domain scenario definitions
+- [docs/RECORDING.md](docs/RECORDING.md) - SVG recording of conversations
+- [docs/FAQ.md](docs/FAQ.md) - Frequently asked questions
+
+## Migration from RunnerAgent
+
+The `RunnerAgent` is deprecated. Migrate to the unified Agent:
 
 ```go
-import "github.com/lex00/wetwire-core-go/version"
+// OLD (deprecated):
+runner, _ := agents.NewRunnerAgent(agents.RunnerConfig{
+    Domain:    myDomain,
+    WorkDir:   "./output",
+    Developer: developer,
+})
+runner.Run(ctx, prompt)
 
-// Get the module version (returns "dev" for local builds)
-v := version.Version()
-fmt.Println("wetwire-core-go version:", v)
+// NEW (recommended):
+mcpServer := mcp.NewServer(mcp.Config{Name: "domain"})
+mcp.RegisterStandardToolsWithDefaults(mcpServer, "domain", handlers)
+
+agent, _ := agents.NewAgent(agents.AgentConfig{
+    Provider:     provider,
+    MCPServer:    agents.NewMCPServerAdapter(mcpServer),
+    Developer:    developer,
+    SystemPrompt: systemPrompt,
+})
+agent.Run(ctx, prompt)
 ```
-
-### CLI Commands
-
-```go
-import "github.com/lex00/wetwire-core-go/cmd"
-
-func main() {
-    root := cmd.NewRootCommand("wetwire-aws", "AWS infrastructure synthesis")
-    root.AddCommand(cmd.NewBuildCommand(myBuilder))
-    root.AddCommand(cmd.NewLintCommand(myLinter))
-    root.AddCommand(cmd.NewInitCommand(myInitializer))
-    root.AddCommand(cmd.NewValidateCommand(myValidator))
-    root.Execute()
-}
-```
-
-### Serialization
-
-```go
-import "github.com/lex00/wetwire-core-go/serialize"
-
-m := serialize.ToMap(resource, serialize.SnakeCase, serialize.OmitEmpty)
-yaml, _ := serialize.ToYAML(resource, serialize.SnakeCase)
-json, _ := serialize.ToJSON(resource, serialize.CamelCase)
-```
-
-For complete examples, see [wetwire-aws-go](https://github.com/lex00/wetwire-aws-go) which integrates this package.
 
 ## License
 
