@@ -190,7 +190,6 @@ func TestWriter_FormatMarkdown(t *testing.T) {
 	score := scoring.NewScore("expert", "lambda_api")
 	score.Completeness.Rating = 3
 	score.LintQuality.Rating = 2
-	score.CodeQuality.Rating = 3
 	score.OutputValidity.Rating = 3
 	score.QuestionEfficiency.Rating = 2
 	session.Score = score

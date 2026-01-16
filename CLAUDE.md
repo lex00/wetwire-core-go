@@ -35,27 +35,24 @@ persona, err := personas.Get("beginner")
 
 ### Scoring
 
-5-dimension evaluation rubric (0-15 scale):
+4-dimension evaluation rubric (0-12 scale):
 
 | Dimension | Points | Description |
 |-----------|--------|-------------|
 | Completeness | 0-3 | Were all required resources generated? |
 | Lint Quality | 0-3 | How many lint cycles needed? |
-| Code Quality | 0-3 | Does code follow idiomatic patterns? |
 | Output Validity | 0-3 | Does generated output validate? |
 | Question Efficiency | 0-3 | Appropriate number of clarifying questions? |
 
 ```go
 import "github.com/lex00/wetwire-core-go/agent/scoring"
 
-score := scoring.Calculate(scoring.Input{
-    Completeness:       3,
-    LintQuality:        2,
-    CodeQuality:        3,
-    OutputValidity:     3,
-    QuestionEfficiency: 2,
-})
-// score.Total, score.Grade
+score := scoring.NewScore("persona", "scenario")
+score.Completeness.Rating = 3
+score.LintQuality.Rating = 2
+score.OutputValidity.Rating = 3
+score.QuestionEfficiency.Rating = 2
+// score.Total(), score.Threshold()
 ```
 
 ### Orchestrator

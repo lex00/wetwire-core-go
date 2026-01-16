@@ -197,13 +197,12 @@ func (w *Writer) formatMarkdown(s *Session) string {
 	// Score summary
 	if s.Score != nil {
 		b.WriteString("## Score\n\n")
-		b.WriteString(fmt.Sprintf("**Total:** %d/15 (%s)\n\n", s.Score.Total(), s.Score.Threshold()))
+		b.WriteString(fmt.Sprintf("**Total:** %d/12 (%s)\n\n", s.Score.Total(), s.Score.Threshold()))
 		b.WriteString("| Dimension | Score | Notes |\n")
 		b.WriteString("|-----------|-------|-------|\n")
 		dims := []scoring.Dimension{
 			s.Score.Completeness,
 			s.Score.LintQuality,
-			s.Score.CodeQuality,
 			s.Score.OutputValidity,
 			s.Score.QuestionEfficiency,
 		}

@@ -117,7 +117,6 @@ func (o *Orchestrator) CalculateScore(
 	expectedResources int,
 	actualResources int,
 	lintPassed bool,
-	codeIssues []string,
 	validationErrors int,
 	validationWarnings int,
 ) *scoring.Score {
@@ -134,11 +133,6 @@ func (o *Orchestrator) CalculateScore(
 	score.LintQuality.Rating = rating
 	score.LintQuality.Notes = notes
 	score.LintCycles = lintCycles
-
-	// Code quality
-	rating, notes = scoring.ScoreCodeQuality(codeIssues)
-	score.CodeQuality.Rating = rating
-	score.CodeQuality.Notes = notes
 
 	// Output validity
 	rating, notes = scoring.ScoreOutputValidity(validationErrors, validationWarnings)

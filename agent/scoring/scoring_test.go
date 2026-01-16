@@ -30,17 +30,15 @@ func TestScore_Total(t *testing.T) {
 
 	s.Completeness.Rating = RatingExcellent
 	s.LintQuality.Rating = RatingExcellent
-	s.CodeQuality.Rating = RatingExcellent
 	s.OutputValidity.Rating = RatingExcellent
 	s.QuestionEfficiency.Rating = RatingExcellent
-	assert.Equal(t, 15, s.Total())
+	assert.Equal(t, 12, s.Total())
 
 	s.Completeness.Rating = RatingGood
 	s.LintQuality.Rating = RatingGood
-	s.CodeQuality.Rating = RatingGood
 	s.OutputValidity.Rating = RatingGood
 	s.QuestionEfficiency.Rating = RatingGood
-	assert.Equal(t, 10, s.Total())
+	assert.Equal(t, 8, s.Total())
 }
 
 func TestScore_Threshold(t *testing.T) {
@@ -48,13 +46,13 @@ func TestScore_Threshold(t *testing.T) {
 		total    int
 		expected string
 	}{
-		{15, "Excellent"},
-		{13, "Excellent"},
-		{12, "Success"},
+		{12, "Excellent"},
+		{11, "Excellent"},
 		{10, "Success"},
-		{9, "Partial"},
-		{6, "Partial"},
-		{5, "Failure"},
+		{8, "Success"},
+		{7, "Partial"},
+		{5, "Partial"},
+		{4, "Failure"},
 		{0, "Failure"},
 	}
 
@@ -62,11 +60,10 @@ func TestScore_Threshold(t *testing.T) {
 		t.Run(tt.expected, func(t *testing.T) {
 			s := NewScore("test", "test")
 			// Set ratings to achieve the target total
-			s.Completeness.Rating = Rating(tt.total / 5)
-			s.LintQuality.Rating = Rating(tt.total / 5)
-			s.CodeQuality.Rating = Rating(tt.total / 5)
-			s.OutputValidity.Rating = Rating(tt.total / 5)
-			s.QuestionEfficiency.Rating = Rating(tt.total - (4 * (tt.total / 5)))
+			s.Completeness.Rating = Rating(tt.total / 4)
+			s.LintQuality.Rating = Rating(tt.total / 4)
+			s.OutputValidity.Rating = Rating(tt.total / 4)
+			s.QuestionEfficiency.Rating = Rating(tt.total - (3 * (tt.total / 4)))
 
 			assert.Equal(t, tt.expected, s.Threshold())
 		})
@@ -77,10 +74,10 @@ func TestScore_Passed(t *testing.T) {
 	s := NewScore("test", "test")
 	assert.False(t, s.Passed())
 
-	// Set to exactly 6
+	// Set to exactly 5 (passes threshold)
 	s.Completeness.Rating = RatingGood
-	s.LintQuality.Rating = RatingGood
-	s.CodeQuality.Rating = RatingGood
+	s.LintQuality.Rating = RatingPartial
+	s.OutputValidity.Rating = RatingGood
 	assert.True(t, s.Passed())
 }
 
@@ -122,25 +119,6 @@ func TestScoreLintQuality(t *testing.T) {
 	for _, tt := range tests {
 		rating, _ := ScoreLintQuality(tt.cycles, tt.passed)
 		assert.Equal(t, tt.rating, rating, "cycles=%d, passed=%v", tt.cycles, tt.passed)
-	}
-}
-
-func TestScoreCodeQuality(t *testing.T) {
-	tests := []struct {
-		issues []string
-		rating Rating
-	}{
-		{nil, RatingExcellent},
-		{[]string{}, RatingExcellent},
-		{[]string{"issue1"}, RatingGood},
-		{[]string{"issue1", "issue2"}, RatingGood},
-		{[]string{"1", "2", "3"}, RatingPartial},
-		{[]string{"1", "2", "3", "4", "5", "6"}, RatingNone},
-	}
-
-	for _, tt := range tests {
-		rating, _ := ScoreCodeQuality(tt.issues)
-		assert.Equal(t, tt.rating, rating, "issues=%d", len(tt.issues))
 	}
 }
 
@@ -190,12 +168,11 @@ func TestScore_String(t *testing.T) {
 	s.Completeness.Rating = RatingExcellent
 	s.Completeness.Notes = "All resources"
 	s.LintQuality.Rating = RatingGood
-	s.CodeQuality.Rating = RatingGood
 	s.OutputValidity.Rating = RatingExcellent
 	s.QuestionEfficiency.Rating = RatingExcellent
 
 	str := s.String()
-	assert.Contains(t, str, "13/15")
+	assert.Contains(t, str, "11/12")
 	assert.Contains(t, str, "Excellent")
 	assert.Contains(t, str, "beginner")
 	assert.Contains(t, str, "s3_bucket")

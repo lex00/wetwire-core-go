@@ -403,7 +403,6 @@ func TestSession_JSON_EdgeCases(t *testing.T) {
 	score := scoring.NewScore("test", "test")
 	score.Completeness.Rating = 3
 	score.LintQuality.Rating = 2
-	score.CodeQuality.Rating = 1
 	score.OutputValidity.Rating = 0
 	score.QuestionEfficiency.Rating = 3
 	session.Score = score

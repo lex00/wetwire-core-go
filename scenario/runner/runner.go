@@ -332,15 +332,6 @@ func calculateScore(result Result, persona, scenarioPath string) *scoring.Score 
 	score.Completeness.Rating = rating
 	score.Completeness.Notes = notes
 
-	// Code Quality: Deferred to domain linters
-	if len(result.Files) > 0 {
-		score.CodeQuality.Rating = scoring.RatingExcellent
-		score.CodeQuality.Notes = "Deferred to domain linters"
-	} else {
-		score.CodeQuality.Rating = scoring.RatingNone
-		score.CodeQuality.Notes = "No files to check"
-	}
-
 	// Lint Quality: Deferred to domain tools
 	if len(result.Files) > 0 {
 		score.LintQuality.Rating = scoring.RatingExcellent
@@ -375,7 +366,7 @@ func saveConversation(result Result, userPrompt, outputPath string) {
 	buf.WriteString(fmt.Sprintf("Duration: %s\n", result.Duration.Round(time.Millisecond)))
 	buf.WriteString(fmt.Sprintf("Success: %t\n", result.Success))
 	if result.Score != nil {
-		buf.WriteString(fmt.Sprintf("Score: %d/15\n", result.Score.Total()))
+		buf.WriteString(fmt.Sprintf("Score: %d/12\n", result.Score.Total()))
 	}
 	buf.WriteString("\n")
 	buf.WriteString("════════════════════════════════════════════════════════════════════════════════\n")
@@ -401,13 +392,12 @@ func writePersonaResults(dir string, result Result) {
 
 	if result.Score != nil {
 		buf.WriteString("## Score\n\n")
-		buf.WriteString(fmt.Sprintf("**Total:** %d/15 (%s)\n\n", result.Score.Total(), result.Score.Threshold()))
+		buf.WriteString(fmt.Sprintf("**Total:** %d/12 (%s)\n\n", result.Score.Total(), result.Score.Threshold()))
 		buf.WriteString("| Dimension | Rating | Notes |\n")
 		buf.WriteString("|-----------|--------|-------|\n")
 		dims := []scoring.Dimension{
 			result.Score.Completeness,
 			result.Score.LintQuality,
-			result.Score.CodeQuality,
 			result.Score.OutputValidity,
 			result.Score.QuestionEfficiency,
 		}
@@ -447,7 +437,7 @@ func writeSummary(outputDir string, results []Result, generateRecordings bool) {
 
 		scoreStr := "-"
 		if r.Score != nil {
-			scoreStr = fmt.Sprintf("%d/15", r.Score.Total())
+			scoreStr = fmt.Sprintf("%d/12", r.Score.Total())
 		}
 
 		buf.WriteString(fmt.Sprintf("| %s | %s | %s | %s |\n",

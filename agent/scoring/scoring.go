@@ -1,11 +1,11 @@
 // Package scoring provides a rubric-based scoring system for agent sessions.
 //
-// Sessions are scored on 5 dimensions (0-3 scale each) for a max score of 15.
+// Sessions are scored on 4 dimensions (0-3 scale each) for a max score of 12.
 // Thresholds:
-//   - 0-5:   Failure (CI fails)
-//   - 6-9:   Partial (needs review)
-//   - 10-12: Success
-//   - 13-15: Excellent
+//   - 0-4:   Failure (CI fails)
+//   - 5-7:   Partial (needs review)
+//   - 8-10:  Success
+//   - 11-12: Excellent
 package scoring
 
 import (
@@ -52,7 +52,6 @@ type Score struct {
 	// Dimensions are the individual scores
 	Completeness       Dimension
 	LintQuality        Dimension
-	CodeQuality        Dimension
 	OutputValidity     Dimension
 	QuestionEfficiency Dimension
 
@@ -63,11 +62,10 @@ type Score struct {
 	QuestionCount int
 }
 
-// Total returns the sum of all dimension scores (0-15).
+// Total returns the sum of all dimension scores (0-12).
 func (s Score) Total() int {
 	return int(s.Completeness.Rating) +
 		int(s.LintQuality.Rating) +
-		int(s.CodeQuality.Rating) +
 		int(s.OutputValidity.Rating) +
 		int(s.QuestionEfficiency.Rating)
 }
@@ -76,11 +74,11 @@ func (s Score) Total() int {
 func (s Score) Threshold() string {
 	total := s.Total()
 	switch {
-	case total >= 13:
+	case total >= 11:
 		return "Excellent"
-	case total >= 10:
+	case total >= 8:
 		return "Success"
-	case total >= 6:
+	case total >= 5:
 		return "Partial"
 	default:
 		return "Failure"
@@ -89,7 +87,7 @@ func (s Score) Threshold() string {
 
 // Passed returns true if the score meets the minimum threshold for CI.
 func (s Score) Passed() bool {
-	return s.Total() >= 6
+	return s.Total() >= 5
 }
 
 // NewScore creates a new Score with initialized dimensions.
@@ -104,10 +102,6 @@ func NewScore(persona, scenario string) *Score {
 		LintQuality: Dimension{
 			Name:        "Lint Quality",
 			Description: "Did the code pass linting?",
-		},
-		CodeQuality: Dimension{
-			Name:        "Code Quality",
-			Description: "Does the code follow idiomatic patterns?",
 		},
 		OutputValidity: Dimension{
 			Name:        "Output Validity",
@@ -157,25 +151,6 @@ func ScoreLintQuality(cycles int, passed bool) (Rating, string) {
 	}
 }
 
-// ScoreCodeQuality scores based on code pattern analysis.
-func ScoreCodeQuality(issues []string) (Rating, string) {
-	if len(issues) == 0 {
-		return RatingExcellent, "No code quality issues"
-	}
-
-	// Join issues for detailed notes
-	details := strings.Join(issues, "; ")
-
-	switch {
-	case len(issues) <= 2:
-		return RatingGood, details
-	case len(issues) <= 5:
-		return RatingPartial, details
-	default:
-		return RatingNone, details
-	}
-}
-
 // ScoreOutputValidity scores based on lint results.
 func ScoreOutputValidity(errors, warnings int) (Rating, string) {
 	if errors > 0 {
@@ -207,13 +182,12 @@ func ScoreQuestionEfficiency(questions int) (Rating, string) {
 // String returns a formatted score summary.
 func (s Score) String() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Score: %d/15 (%s)\n", s.Total(), s.Threshold()))
+	b.WriteString(fmt.Sprintf("Score: %d/12 (%s)\n", s.Total(), s.Threshold()))
 	b.WriteString(fmt.Sprintf("Persona: %s, Scenario: %s\n\n", s.Persona, s.Scenario))
 
 	dims := []Dimension{
 		s.Completeness,
 		s.LintQuality,
-		s.CodeQuality,
 		s.OutputValidity,
 		s.QuestionEfficiency,
 	}

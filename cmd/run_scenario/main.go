@@ -110,7 +110,7 @@ func main() {
 		}
 		fmt.Printf("Status:   %s (%s)\n", status, r.Duration.Round(time.Millisecond))
 		if r.Score != nil {
-			fmt.Printf("Score:    %d/15 (%s)\n", r.Score.Total(), r.Score.Threshold())
+			fmt.Printf("Score:    %d/12 (%s)\n", r.Score.Total(), r.Score.Threshold())
 		}
 		if !r.Success {
 			os.Exit(1)
@@ -150,7 +150,7 @@ func printSummary(results []runner.Result) {
 		}
 		scoreStr := ""
 		if r.Score != nil {
-			scoreStr = fmt.Sprintf(" [%d/15]", r.Score.Total())
+			scoreStr = fmt.Sprintf(" [%d/12]", r.Score.Total())
 		}
 		fmt.Printf("  %-12s %s%s  (%s)\n", r.Persona, status, scoreStr, r.Duration.Round(time.Millisecond))
 	}
