@@ -339,7 +339,7 @@ func runCfnLint(content, outputDir string) (errors, warnings int) {
 	if err := os.WriteFile(tmpFile, []byte(content), 0644); err != nil {
 		return 0, 0
 	}
-	defer os.Remove(tmpFile)
+	defer func() { _ = os.Remove(tmpFile) }()
 
 	cmd := exec.Command("cfn-lint", tmpFile, "--format", "parseable")
 	output, _ := cmd.CombinedOutput()

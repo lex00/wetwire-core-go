@@ -24,7 +24,7 @@ func TestLoadSystemPrompt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	t.Run("loads custom system prompt", func(t *testing.T) {
 		content := "You are a test assistant."
@@ -41,7 +41,7 @@ func TestLoadSystemPrompt(t *testing.T) {
 
 	t.Run("returns default when file missing", func(t *testing.T) {
 		emptyDir, _ := os.MkdirTemp("", "empty-*")
-		defer os.RemoveAll(emptyDir)
+		defer func() { _ = os.RemoveAll(emptyDir) }()
 
 		result := loadSystemPrompt(emptyDir)
 		if result == "" {
@@ -58,11 +58,11 @@ func TestLoadUserPrompt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create prompts directory
 	promptsDir := filepath.Join(tmpDir, "prompts")
-	os.MkdirAll(promptsDir, 0755)
+	_ = os.MkdirAll(promptsDir, 0755)
 
 	t.Run("loads persona-specific prompt", func(t *testing.T) {
 		content := "# Beginner Prompt\n\nI need help with infrastructure."
@@ -96,7 +96,7 @@ func TestLoadUserPrompt(t *testing.T) {
 
 	t.Run("returns fallback when no prompts exist", func(t *testing.T) {
 		emptyDir, _ := os.MkdirTemp("", "empty-*")
-		defer os.RemoveAll(emptyDir)
+		defer func() { _ = os.RemoveAll(emptyDir) }()
 
 		result := loadUserPrompt(emptyDir, "beginner")
 		if result == "" {
@@ -110,12 +110,12 @@ func TestFindGeneratedFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	t.Run("finds generated files", func(t *testing.T) {
 		// Create some test files
-		os.WriteFile(filepath.Join(tmpDir, "template.yaml"), []byte("content1"), 0644)
-		os.WriteFile(filepath.Join(tmpDir, "config.json"), []byte("content2"), 0644)
+		_ = os.WriteFile(filepath.Join(tmpDir, "template.yaml"), []byte("content1"), 0644)
+		_ = os.WriteFile(filepath.Join(tmpDir, "config.json"), []byte("content2"), 0644)
 
 		files := findGeneratedFiles(tmpDir)
 		if len(files) != 2 {
@@ -131,9 +131,9 @@ func TestFindGeneratedFiles(t *testing.T) {
 
 	t.Run("excludes output files", func(t *testing.T) {
 		// Create files that should be excluded
-		os.WriteFile(filepath.Join(tmpDir, "conversation.txt"), []byte("excluded"), 0644)
-		os.WriteFile(filepath.Join(tmpDir, "RESULTS.md"), []byte("excluded"), 0644)
-		os.WriteFile(filepath.Join(tmpDir, "test.svg"), []byte("excluded"), 0644)
+		_ = os.WriteFile(filepath.Join(tmpDir, "conversation.txt"), []byte("excluded"), 0644)
+		_ = os.WriteFile(filepath.Join(tmpDir, "RESULTS.md"), []byte("excluded"), 0644)
+		_ = os.WriteFile(filepath.Join(tmpDir, "test.svg"), []byte("excluded"), 0644)
 
 		files := findGeneratedFiles(tmpDir)
 		if _, ok := files["conversation.txt"]; ok {
@@ -149,8 +149,8 @@ func TestFindGeneratedFiles(t *testing.T) {
 
 	t.Run("finds nested files", func(t *testing.T) {
 		nestedDir := filepath.Join(tmpDir, "nested")
-		os.MkdirAll(nestedDir, 0755)
-		os.WriteFile(filepath.Join(nestedDir, "nested.yaml"), []byte("nested content"), 0644)
+		_ = os.MkdirAll(nestedDir, 0755)
+		_ = os.WriteFile(filepath.Join(nestedDir, "nested.yaml"), []byte("nested content"), 0644)
 
 		files := findGeneratedFiles(tmpDir)
 		if _, ok := files["nested/nested.yaml"]; !ok {

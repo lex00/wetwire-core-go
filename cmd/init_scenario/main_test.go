@@ -47,7 +47,7 @@ func TestSystemPromptMD(t *testing.T) {
 func TestPromptMD(t *testing.T) {
 	result := promptMD("Test description")
 
-	if !strings.Contains(result, "Test Description") {
+	if !strings.Contains(result, "Test description") {
 		t.Error("expected title with description")
 	}
 	if !strings.Contains(result, "Requirements") {
@@ -159,7 +159,7 @@ func TestScenarioCreation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	scenarioPath := filepath.Join(tmpDir, "test_scenario")
 	description := "Test scenario description"

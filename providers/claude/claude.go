@@ -198,16 +198,6 @@ func (p *Provider) StreamMessage(ctx context.Context, req providers.MessageReque
 func (p *Provider) buildPrompt(req providers.MessageRequest) string {
 	var parts []string
 
-	// Add system prompt if present
-	systemPrompt := p.config.SystemPrompt
-	if req.System != "" {
-		if systemPrompt != "" {
-			systemPrompt = systemPrompt + "\n\n" + req.System
-		} else {
-			systemPrompt = req.System
-		}
-	}
-
 	// Extract user messages
 	for _, msg := range req.Messages {
 		if msg.Role == "user" {

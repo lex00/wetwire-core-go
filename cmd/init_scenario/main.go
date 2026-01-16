@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 func main() {
@@ -137,7 +136,7 @@ TODO: Describe what the user wants to create.
 ## Expected Outputs
 
 - TODO: List the expected output files
-`, strings.Title(description))
+`, description)
 }
 
 func beginnerMD(description string) string {
