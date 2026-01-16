@@ -1,6 +1,9 @@
 name: aws_gitlab_s3_deploy
 description: S3 bucket with GitLab CI/CD pipeline for deployment
 
+# Model to use: haiku (fast), sonnet (balanced), opus (best quality)
+model: haiku
+
 prompts:
   default: prompt.md
   variants:

@@ -159,77 +159,52 @@ func TestFindGeneratedFiles(t *testing.T) {
 	})
 }
 
-func TestCheckCodeQuality(t *testing.T) {
-	t.Run("checks CloudFormation patterns", func(t *testing.T) {
-		content := `AWSTemplateFormatVersion: '2010-09-09'
-Resources:
-  MyBucket:
-    Type: AWS::S3::Bucket
-`
-		issues := checkCodeQuality(content)
-		// Should flag missing Description, Parameters, Outputs, DeletionPolicy
-		if len(issues) < 3 {
-			t.Errorf("expected at least 3 issues for minimal CFN, got %d", len(issues))
+func TestCompareToExpected(t *testing.T) {
+	t.Run("matches patterns from expected", func(t *testing.T) {
+		expected := map[string]string{
+			"template.yaml": "AWSTemplateFormatVersion: '2010-09-09'\nDescription: Test template\nResources:\n  Bucket:\n    Type: AWS::S3::Bucket",
+		}
+		generated := map[string]string{
+			"output.yaml": "AWSTemplateFormatVersion: '2010-09-09'\nDescription: Test template\nResources:\n  Bucket:\n    Type: AWS::S3::Bucket",
+		}
+
+		matched, total, _ := compareToExpected(generated, expected)
+		if matched == 0 {
+			t.Error("expected some patterns to match")
+		}
+		if total == 0 {
+			t.Error("expected some patterns to be extracted")
 		}
 	})
 
-	t.Run("no issues for complete CloudFormation", func(t *testing.T) {
-		content := `AWSTemplateFormatVersion: '2010-09-09'
-Description: Complete template
-Parameters:
-  Env:
-    Type: String
-Resources:
-  MyBucket:
-    Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
-Outputs:
-  BucketName:
-    Value: !Ref MyBucket
-`
-		issues := checkCodeQuality(content)
-		if len(issues) != 0 {
-			t.Errorf("expected 0 issues for complete CFN, got %d: %v", len(issues), issues)
+	t.Run("low match for different content", func(t *testing.T) {
+		expected := map[string]string{
+			"template.yaml": "AWSTemplateFormatVersion: '2010-09-09'\nDescription: Expected content",
+		}
+		generated := map[string]string{
+			"output.yaml": "completely different content here",
+		}
+
+		matched, total, _ := compareToExpected(generated, expected)
+		if total > 0 && matched > total/2 {
+			t.Errorf("expected low match ratio, got %d/%d", matched, total)
 		}
 	})
 
-	t.Run("checks GitLab CI patterns", func(t *testing.T) {
-		content := `stages:
-  - build
-build:
-  stage: build
-  script:
-    - echo "hello"
-`
-		issues := checkCodeQuality(content)
-		// Should flag missing rules: and image:
-		if len(issues) < 1 {
-			t.Errorf("expected at least 1 issue for minimal GitLab CI, got %d", len(issues))
+	t.Run("handles empty expected", func(t *testing.T) {
+		generated := map[string]string{"file.yaml": "content"}
+		matched, total, _ := compareToExpected(generated, map[string]string{})
+		if total != 0 || matched != 0 {
+			t.Error("expected zero patterns for empty expected")
 		}
 	})
+}
 
-	t.Run("no issues for complete GitLab CI", func(t *testing.T) {
-		content := `stages:
-  - build
-build:
-  stage: build
-  image: golang:1.21
-  rules:
-    - if: $CI_COMMIT_BRANCH
-  script:
-    - echo "hello"
-`
-		issues := checkCodeQuality(content)
-		if len(issues) != 0 {
-			t.Errorf("expected 0 issues for complete GitLab CI, got %d: %v", len(issues), issues)
-		}
-	})
-
-	t.Run("ignores unknown content", func(t *testing.T) {
-		content := `random content that is not CFN or GitLab`
-		issues := checkCodeQuality(content)
-		if len(issues) != 0 {
-			t.Errorf("expected 0 issues for unknown content, got %d", len(issues))
+func TestLoadExpectedFiles(t *testing.T) {
+	t.Run("returns empty for missing directory", func(t *testing.T) {
+		files := loadExpectedFiles("/nonexistent/path")
+		if len(files) != 0 {
+			t.Errorf("expected empty map, got %d files", len(files))
 		}
 	})
 }

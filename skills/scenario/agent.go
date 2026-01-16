@@ -61,7 +61,7 @@ func (a *ScenarioAgent) Session() *results.Session {
 func (a *ScenarioAgent) Run(ctx context.Context, prompt string) error {
 	systemPrompt := `You are an autonomous infrastructure code generator for multi-domain scenarios.
 
-Your job is to generate infrastructure code across multiple domains (AWS, GitLab, K8s, etc.) using the wetwire framework.
+Your job is to generate infrastructure code across multiple domains using the wetwire framework.
 
 You have access to MCP tools provided by domain packages. Use these tools to:
 1. Initialize packages

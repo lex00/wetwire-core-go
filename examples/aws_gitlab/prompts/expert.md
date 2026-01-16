@@ -1,5 +1,3 @@
-# S3 Template + GitLab Publish (Expert)
-
 S3 bucket CFN template with GitLab pipeline for publishing (not execution).
 
 ## AWS

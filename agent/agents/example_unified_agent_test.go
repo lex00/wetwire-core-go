@@ -110,7 +110,7 @@ You can use the 'build' tool to build the project.`,
 func Example_unifiedAgent_migration() {
 	// OLD WAY (deprecated):
 	// runner, _ := agents.NewRunnerAgent(agents.RunnerConfig{
-	//     Domain:    agents.DefaultAWSDomain(),
+	//     Domain:    myDomainConfig,  // domain is required
 	//     Provider:  provider,
 	//     WorkDir:   "/tmp/work",
 	//     Session:   session,

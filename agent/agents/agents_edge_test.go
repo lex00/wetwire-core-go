@@ -559,6 +559,13 @@ func TestStateTransitions(t *testing.T) {
 func TestNewRunnerAgent_Configuration(t *testing.T) {
 	t.Parallel()
 
+	testDomain := DomainConfig{
+		Name:         "test",
+		CLICommand:   "test-cli",
+		SystemPrompt: "Test prompt",
+		OutputFormat: "JSON",
+	}
+
 	tests := []struct {
 		name      string
 		config    RunnerConfig
@@ -568,6 +575,7 @@ func TestNewRunnerAgent_Configuration(t *testing.T) {
 		{
 			name: "valid_config_with_api_key",
 			config: RunnerConfig{
+				Domain:        testDomain,
 				APIKey:        "test-key",
 				WorkDir:       t.TempDir(),
 				MaxLintCycles: 5,
@@ -578,6 +586,7 @@ func TestNewRunnerAgent_Configuration(t *testing.T) {
 		{
 			name: "empty_config_with_env",
 			config: RunnerConfig{
+				Domain: testDomain,
 				APIKey: "",
 			},
 			setEnv:    true,
@@ -586,6 +595,7 @@ func TestNewRunnerAgent_Configuration(t *testing.T) {
 		{
 			name: "no_api_key",
 			config: RunnerConfig{
+				Domain: testDomain,
 				APIKey: "",
 			},
 			setEnv:    false,
@@ -594,10 +604,19 @@ func TestNewRunnerAgent_Configuration(t *testing.T) {
 		{
 			name: "defaults_applied",
 			config: RunnerConfig{
+				Domain: testDomain,
 				APIKey: "test-key",
 			},
 			setEnv:    false,
 			wantError: false,
+		},
+		{
+			name: "missing_domain",
+			config: RunnerConfig{
+				APIKey: "test-key",
+			},
+			setEnv:    false,
+			wantError: true,
 		},
 	}
 

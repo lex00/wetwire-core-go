@@ -37,43 +37,6 @@ type DomainConfig struct {
 	OutputFormat string
 }
 
-// DefaultAWSDomain returns the default AWS CloudFormation domain configuration.
-// This provides backwards compatibility for existing AWS integrations.
-func DefaultAWSDomain() DomainConfig {
-	return DomainConfig{
-		Name:       "aws",
-		CLICommand: "wetwire-aws",
-		SystemPrompt: `You are an infrastructure code generator using the wetwire-aws framework.
-Your job is to generate Go code that defines AWS CloudFormation resources.
-
-The user will describe what infrastructure they need. You will:
-1. Ask clarifying questions if the requirements are unclear
-2. Generate Go code using the wetwire-aws patterns
-3. Run the linter and fix any issues
-4. Build the CloudFormation template
-
-Use the wrapper pattern for all resources:
-
-    var MyBucket = s3.Bucket{
-        BucketName: "my-bucket",
-    }
-
-    var MyFunction = lambda.Function{
-        Role: MyRole.Arn,  // Reference to another resource's attribute
-    }
-
-Available tools:
-- init_package: Create a new package directory
-- write_file: Write a Go file
-- read_file: Read a file's contents
-- run_lint: Run the linter on the package
-- run_build: Build the CloudFormation template
-- ask_developer: Ask the developer a clarifying question
-
-Always run_lint after writing files, and fix any issues before running build.`,
-		OutputFormat: "CloudFormation JSON",
-	}
-}
 
 // RunnerAgent generates infrastructure code using a configurable AI provider.
 //
@@ -123,8 +86,7 @@ type StreamHandler = providers.StreamHandler
 
 // RunnerConfig configures the RunnerAgent.
 type RunnerConfig struct {
-	// Domain provides domain-specific configuration.
-	// If not set, defaults to AWS (DefaultAWSDomain) for backwards compatibility.
+	// Domain provides domain-specific configuration (required).
 	Domain DomainConfig
 
 	// Provider is the AI provider to use. If nil, defaults to Anthropic.
@@ -169,10 +131,10 @@ func NewRunnerAgent(config RunnerConfig) (*RunnerAgent, error) {
 		}
 	}
 
-	// Default to AWS domain for backwards compatibility
+	// Domain is required
 	domain := config.Domain
 	if domain.CLICommand == "" {
-		domain = DefaultAWSDomain()
+		return nil, fmt.Errorf("domain.CLICommand is required")
 	}
 
 	if config.WorkDir == "" {

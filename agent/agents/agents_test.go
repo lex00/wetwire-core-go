@@ -245,28 +245,16 @@ func TestGetTemplate(t *testing.T) {
 	assert.Equal(t, `{"Resources": {}}`, r.GetTemplate())
 }
 
-func TestDefaultAWSDomain(t *testing.T) {
-	domain := DefaultAWSDomain()
-
-	assert.Equal(t, "aws", domain.Name)
-	assert.Equal(t, "wetwire-aws", domain.CLICommand)
-	assert.Equal(t, "CloudFormation JSON", domain.OutputFormat)
-	assert.NotEmpty(t, domain.SystemPrompt)
-	assert.Contains(t, domain.SystemPrompt, "wetwire-aws")
-}
-
-func TestNewRunnerAgent_DefaultDomain(t *testing.T) {
+func TestNewRunnerAgent_RequiresDomain(t *testing.T) {
 	config := RunnerConfig{
 		Provider: &mockProvider{},
 		WorkDir:  t.TempDir(),
-		// Domain not specified - should default to AWS
+		// Domain not specified - should error
 	}
 
-	agent, err := NewRunnerAgent(config)
-	assert.NoError(t, err)
-
-	assert.Equal(t, "aws", agent.domain.Name)
-	assert.Equal(t, "wetwire-aws", agent.domain.CLICommand)
+	_, err := NewRunnerAgent(config)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "domain.CLICommand is required")
 }
 
 func TestNewRunnerAgent_CustomDomain(t *testing.T) {

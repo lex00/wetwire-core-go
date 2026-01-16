@@ -88,6 +88,9 @@ func scenarioYAML(name, description string) string {
 	return fmt.Sprintf(`name: %s
 description: %s
 
+# Model to use: haiku (fast), sonnet (balanced), opus (best quality)
+model: sonnet
+
 prompts:
   default: prompt.md
   variants:

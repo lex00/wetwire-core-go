@@ -111,7 +111,7 @@ func NewScore(persona, scenario string) *Score {
 		},
 		OutputValidity: Dimension{
 			Name:        "Output Validity",
-			Description: "Is the generated CloudFormation template valid?",
+			Description: "Is the generated output valid?",
 		},
 		QuestionEfficiency: Dimension{
 			Name:        "Question Efficiency",
@@ -163,28 +163,31 @@ func ScoreCodeQuality(issues []string) (Rating, string) {
 		return RatingExcellent, "No code quality issues"
 	}
 
+	// Join issues for detailed notes
+	details := strings.Join(issues, "; ")
+
 	switch {
 	case len(issues) <= 2:
-		return RatingGood, fmt.Sprintf("%d minor issues", len(issues))
+		return RatingGood, details
 	case len(issues) <= 5:
-		return RatingPartial, fmt.Sprintf("%d issues found", len(issues))
+		return RatingPartial, details
 	default:
-		return RatingNone, fmt.Sprintf("%d issues found", len(issues))
+		return RatingNone, details
 	}
 }
 
-// ScoreOutputValidity scores based on cfn-lint results.
+// ScoreOutputValidity scores based on lint results.
 func ScoreOutputValidity(errors, warnings int) (Rating, string) {
 	if errors > 0 {
-		return RatingNone, fmt.Sprintf("%d errors in CloudFormation output", errors)
+		return RatingNone, fmt.Sprintf("%d errors in output", errors)
 	}
 	if warnings == 0 {
-		return RatingExcellent, "CloudFormation template is valid"
+		return RatingExcellent, "Output is valid"
 	}
 	if warnings <= 2 {
-		return RatingGood, fmt.Sprintf("%d warnings in CloudFormation output", warnings)
+		return RatingGood, fmt.Sprintf("%d warnings in output", warnings)
 	}
-	return RatingPartial, fmt.Sprintf("%d warnings in CloudFormation output", warnings)
+	return RatingPartial, fmt.Sprintf("%d warnings in output", warnings)
 }
 
 // ScoreQuestionEfficiency scores based on number of clarifying questions.

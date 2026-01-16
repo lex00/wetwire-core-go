@@ -118,8 +118,8 @@ func (o *Orchestrator) CalculateScore(
 	actualResources int,
 	lintPassed bool,
 	codeIssues []string,
-	cfnErrors int,
-	cfnWarnings int,
+	validationErrors int,
+	validationWarnings int,
 ) *scoring.Score {
 	score := scoring.NewScore(o.config.Persona.Name, o.config.Scenario)
 
@@ -141,7 +141,7 @@ func (o *Orchestrator) CalculateScore(
 	score.CodeQuality.Notes = notes
 
 	// Output validity
-	rating, notes = scoring.ScoreOutputValidity(cfnErrors, cfnWarnings)
+	rating, notes = scoring.ScoreOutputValidity(validationErrors, validationWarnings)
 	score.OutputValidity.Rating = rating
 	score.OutputValidity.Notes = notes
 

@@ -16,9 +16,9 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/lex00/wetwire-core-go/agent/scoring"
@@ -68,6 +68,13 @@ func Run(ctx context.Context, cfg Config) ([]Result, error) {
 		return nil, fmt.Errorf("claude CLI not found in PATH")
 	}
 
+	// Load scenario config to get model setting
+	scenarioConfig, err := scenariopkg.Load(cfg.ScenarioPath)
+	if err != nil {
+		// Not fatal - use defaults if no scenario.yaml
+		scenarioConfig = &scenariopkg.ScenarioConfig{}
+	}
+
 	personas := cfg.Personas
 	if len(personas) == 0 {
 		personas = DefaultPersonas
@@ -82,19 +89,57 @@ func Run(ctx context.Context, cfg Config) ([]Result, error) {
 		return nil, fmt.Errorf("failed to create output directory: %w", err)
 	}
 
-	var results []Result
-	for _, persona := range personas {
-		result := runPersona(ctx, cfg, persona)
-		results = append(results, result)
+	model := scenarioConfig.Model
+	if model != "" {
+		fmt.Printf("Model: %s\n", model)
 	}
 
-	// Write summary
+	var results []Result
+
+	if len(personas) == 1 {
+		// Single persona: run directly with streaming
+		result := runPersona(ctx, cfg, personas[0], model, cfg.Verbose)
+		results = []Result{result}
+	} else {
+		// Multiple personas: run in parallel without streaming (would be interleaved)
+		var wg sync.WaitGroup
+		var mu sync.Mutex
+		results = make([]Result, len(personas))
+
+		fmt.Printf("Running %d personas in parallel...\n", len(personas))
+
+		for i, persona := range personas {
+			wg.Add(1)
+			go func(idx int, p string) {
+				defer wg.Done()
+				mu.Lock()
+				fmt.Printf("  [%s] Starting...\n", p)
+				mu.Unlock()
+
+				result := runPersona(ctx, cfg, p, model, false) // no streaming for parallel
+
+				mu.Lock()
+				results[idx] = result
+				status := "FAILED"
+				if result.Success {
+					status = "SUCCESS"
+				}
+				fmt.Printf("  [%s] Done: %s (%s)\n", p, status, result.Duration.Round(time.Millisecond))
+				mu.Unlock()
+			}(i, persona)
+		}
+
+		wg.Wait()
+		fmt.Println()
+	}
+
+	// Write summary after all personas complete
 	writeSummary(cfg.OutputDir, results, cfg.GenerateRecordings)
 
 	return results, nil
 }
 
-func runPersona(ctx context.Context, cfg Config, personaName string) Result {
+func runPersona(ctx context.Context, cfg Config, personaName, model string, verbose bool) Result {
 	result := Result{
 		Persona: personaName,
 		Files:   make(map[string]string),
@@ -134,6 +179,7 @@ Use the Write tool to create files. Use mkdir via Bash if directories are needed
 	provider, err := claude.New(claude.Config{
 		WorkDir:        absPersonaDir,
 		SystemPrompt:   systemPrompt,
+		Model:          model,
 		AllowedTools:   []string{"Write", "Bash", "Read", "Glob"},
 		PermissionMode: "acceptEdits",
 	})
@@ -147,7 +193,7 @@ Use the Write tool to create files. Use mkdir via Bash if directories are needed
 
 	// Stream handler to show progress and capture response
 	streamHandler := func(text string) {
-		if cfg.Verbose {
+		if verbose {
 			fmt.Print(text)
 		}
 		responseText.WriteString(text)
@@ -160,7 +206,7 @@ Use the Write tool to create files. Use mkdir via Bash if directories are needed
 	}, streamHandler)
 	result.Duration = time.Since(start)
 
-	if cfg.Verbose {
+	if verbose {
 		fmt.Println() // newline after streaming
 	}
 
@@ -279,38 +325,51 @@ func loadUserPrompt(scenarioPath, personaName string) string {
 func calculateScore(result Result, persona, scenarioPath string) *scoring.Score {
 	score := scoring.NewScore(persona, scenarioPath)
 
+	// Load expected files for comparison
+	expectedFiles := loadExpectedFiles(scenarioPath)
+	expectedCount := len(expectedFiles)
+	if expectedCount == 0 {
+		expectedCount = 2 // Default expectation if no expected/ dir
+	}
+
 	// Completeness: Check if files were created
-	expectedFiles := 2 // Default expectation
 	actualFiles := len(result.Files)
-	rating, notes := scoring.ScoreCompleteness(expectedFiles, actualFiles)
+	rating, notes := scoring.ScoreCompleteness(expectedCount, actualFiles)
 	score.Completeness.Rating = rating
 	score.Completeness.Notes = notes
 
-	// Lint Quality: Check for YAML validity
-	var lintErrors, lintWarnings int
-	for _, content := range result.Files {
-		if strings.Contains(content, "AWSTemplateFormatVersion") {
-			e, w := runCfnLint(content, result.OutputDir)
-			lintErrors += e
-			lintWarnings += w
+	// Code Quality: Compare generated files to expected patterns
+	if len(expectedFiles) > 0 {
+		matched, total, details := compareToExpected(result.Files, expectedFiles)
+		ratio := float64(matched) / float64(total)
+		switch {
+		case ratio >= 0.9:
+			score.CodeQuality.Rating = scoring.RatingExcellent
+		case ratio >= 0.7:
+			score.CodeQuality.Rating = scoring.RatingGood
+		case ratio >= 0.5:
+			score.CodeQuality.Rating = scoring.RatingPartial
+		default:
+			score.CodeQuality.Rating = scoring.RatingNone
 		}
+		score.CodeQuality.Notes = fmt.Sprintf("%d/%d patterns matched: %s", matched, total, details)
+	} else {
+		score.CodeQuality.Rating = scoring.RatingGood
+		score.CodeQuality.Notes = "No expected files to compare"
 	}
-	rating, notes = scoring.ScoreOutputValidity(lintErrors, lintWarnings)
-	score.LintQuality.Rating = rating
-	score.LintQuality.Notes = notes
 
-	// Code Quality: Check for patterns
-	var issues []string
-	for _, content := range result.Files {
-		issues = append(issues, checkCodeQuality(content)...)
+	// Lint Quality: Deferred to domain tools
+	score.LintQuality.Rating = scoring.RatingExcellent
+	score.LintQuality.Notes = "Deferred to domain tools"
+
+	// Output Validity: Files were generated
+	if len(result.Files) > 0 {
+		score.OutputValidity.Rating = scoring.RatingExcellent
+		score.OutputValidity.Notes = fmt.Sprintf("%d files generated", len(result.Files))
+	} else {
+		score.OutputValidity.Rating = scoring.RatingNone
+		score.OutputValidity.Notes = "No files generated"
 	}
-	rating, notes = scoring.ScoreCodeQuality(issues)
-	score.CodeQuality.Rating = rating
-	score.CodeQuality.Notes = notes
-
-	// Output Validity
-	score.OutputValidity.Rating = scoring.RatingExcellent
-	score.OutputValidity.Notes = "Files generated successfully"
 
 	// Question Efficiency
 	rating, notes = scoring.ScoreQuestionEfficiency(0)
@@ -320,56 +379,73 @@ func calculateScore(result Result, persona, scenarioPath string) *scoring.Score 
 	return score
 }
 
-func checkCodeQuality(content string) []string {
-	var issues []string
+// loadExpectedFiles loads files from the expected/ directory.
+func loadExpectedFiles(scenarioPath string) map[string]string {
+	expectedDir := filepath.Join(scenarioPath, "expected")
+	files := make(map[string]string)
 
-	// Check for common patterns based on content type
-	if strings.Contains(content, "AWSTemplateFormatVersion") {
-		// CloudFormation checks
-		desirable := []string{"Description", "Parameters:", "Outputs:", "DeletionPolicy"}
-		for _, d := range desirable {
-			if !strings.Contains(content, d) {
-				issues = append(issues, fmt.Sprintf("Missing: %s", d))
-			}
+	_ = filepath.Walk(expectedDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
 		}
-	}
-
-	if strings.Contains(content, "stages:") {
-		// GitLab CI checks
-		desirable := []string{"rules:", "image:"}
-		for _, d := range desirable {
-			if !strings.Contains(content, d) {
-				issues = append(issues, fmt.Sprintf("Missing: %s", d))
-			}
+		// Skip hidden files
+		if strings.HasPrefix(info.Name(), ".") {
+			return nil
 		}
-	}
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		relPath, _ := filepath.Rel(expectedDir, path)
+		files[relPath] = string(content)
+		return nil
+	})
 
-	return issues
+	return files
 }
 
-func runCfnLint(content, outputDir string) (errors, warnings int) {
-	if _, err := exec.LookPath("cfn-lint"); err != nil {
-		return 0, 0
-	}
-
-	tmpFile := filepath.Join(outputDir, "temp_cfn_lint.yaml")
-	if err := os.WriteFile(tmpFile, []byte(content), 0644); err != nil {
-		return 0, 0
-	}
-	defer func() { _ = os.Remove(tmpFile) }()
-
-	cmd := exec.Command("cfn-lint", tmpFile, "--format", "parseable")
-	output, _ := cmd.CombinedOutput()
-
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		if strings.Contains(line, ":E") {
-			errors++
-		} else if strings.Contains(line, ":W") {
-			warnings++
+// compareToExpected compares generated files against expected patterns.
+// Returns (matched, total, details).
+func compareToExpected(generated, expected map[string]string) (int, int, string) {
+	// Extract key patterns from expected files (non-empty lines that aren't comments)
+	var patterns []string
+	for _, content := range expected {
+		for _, line := range strings.Split(content, "\n") {
+			trimmed := strings.TrimSpace(line)
+			// Skip empty lines, comments, and very short lines
+			if trimmed == "" || strings.HasPrefix(trimmed, "#") || len(trimmed) < 5 {
+				continue
+			}
+			// Use first 40 chars of significant lines as patterns
+			if len(trimmed) > 40 {
+				trimmed = trimmed[:40]
+			}
+			patterns = append(patterns, trimmed)
 		}
 	}
-	return errors, warnings
+
+	if len(patterns) == 0 {
+		return 0, 0, "no patterns"
+	}
+
+	// Combine all generated content
+	var allGenerated strings.Builder
+	for _, content := range generated {
+		allGenerated.WriteString(content)
+		allGenerated.WriteString("\n")
+	}
+	generatedStr := allGenerated.String()
+
+	// Check how many patterns match
+	matched := 0
+	for _, pattern := range patterns {
+		if strings.Contains(generatedStr, pattern) {
+			matched++
+		}
+	}
+
+	pct := (matched * 100) / len(patterns)
+	return matched, len(patterns), fmt.Sprintf("%d%%", pct)
 }
 
 func saveConversation(result Result, userPrompt, outputPath string) {

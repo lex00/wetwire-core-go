@@ -433,7 +433,7 @@ func TestAIDeveloper_Respond(t *testing.T) {
 			persona: personas.Beginner,
 			message: "What encryption?",
 			responder: func(ctx context.Context, systemPrompt, message string) (string, error) {
-				assert.Contains(t, systemPrompt, "new to AWS")
+				assert.Contains(t, systemPrompt, "new to infrastructure")
 				return "I'm not sure, what do you recommend?", nil
 			},
 			expected: "I'm not sure, what do you recommend?",
