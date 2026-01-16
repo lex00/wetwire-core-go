@@ -83,10 +83,10 @@ type MCPServerConfig struct {
 
 // AgentConfig represents the custom agent configuration structure.
 type AgentConfig struct {
-	Name       string                       `json:"name"`
-	Prompt     string                       `json:"prompt"`
-	MCPServers map[string]MCPServerConfig   `json:"mcpServers"`
-	Tools      []string                     `json:"tools,omitempty"`
+	Name       string                     `json:"name"`
+	Prompt     string                     `json:"prompt"`
+	MCPServers map[string]MCPServerConfig `json:"mcpServers"`
+	Tools      []string                   `json:"tools,omitempty"`
 }
 
 // GenerateMCPConfig generates the MCP server configuration.

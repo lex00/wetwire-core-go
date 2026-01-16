@@ -13,7 +13,7 @@ type ExampleSession struct {
 	messages []scenario.SessionMessage
 }
 
-func (s *ExampleSession) Name() string                          { return s.name }
+func (s *ExampleSession) Name() string                           { return s.name }
 func (s *ExampleSession) GetMessages() []scenario.SessionMessage { return s.messages }
 
 func main() {

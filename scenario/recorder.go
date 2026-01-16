@@ -547,8 +547,8 @@ func generateSessionCast(path string, session SessionMessages, opts SessionRecor
 	currentTime := 0.0
 
 	// ANSI color codes
-	greenOn := "\\u001b[32m"  // Green text
-	colorOff := "\\u001b[0m"  // Reset color
+	greenOn := "\\u001b[32m" // Green text
+	colorOff := "\\u001b[0m" // Reset color
 
 	for _, msg := range session.GetMessages() {
 		if msg.Role == "developer" {

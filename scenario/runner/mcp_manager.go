@@ -12,7 +12,7 @@ import (
 
 // MCPManager manages MCP server connections for multiple domains.
 type MCPManager struct {
-	clients map[string]*mcp.Client // domain name -> client
+	clients map[string]*mcp.Client    // domain name -> client
 	tools   map[string][]mcp.ToolInfo // domain name -> available tools
 	mu      sync.RWMutex
 	workDir string

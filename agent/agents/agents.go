@@ -37,7 +37,6 @@ type DomainConfig struct {
 	OutputFormat string
 }
 
-
 // RunnerAgent generates infrastructure code using a configurable AI provider.
 //
 // Deprecated: Use Agent with MCPServerAdapter instead. RunnerAgent hardcodes
@@ -59,7 +58,6 @@ type DomainConfig struct {
 //		SystemPrompt: "...",
 //	})
 //	agent.Run(ctx, prompt)
-//
 type RunnerAgent struct {
 	provider       providers.Provider
 	model          string
