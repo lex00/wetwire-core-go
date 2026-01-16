@@ -29,11 +29,7 @@ func TestValidateStructure_MissingDirectory(t *testing.T) {
 
 func TestValidateStructure_MissingFiles(t *testing.T) {
 	// Create a temporary directory with missing files
-	tmpDir, err := os.MkdirTemp("", "scenario-test-*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	result := ValidateStructure(tmpDir)
 	if result.IsValid() {
@@ -48,23 +44,31 @@ func TestValidateStructure_MissingFiles(t *testing.T) {
 }
 
 func TestValidateStructure_InvalidYAML(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "scenario-test-*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	// Create required directories and files
-	os.MkdirAll(filepath.Join(tmpDir, "prompts"), 0755)
+	if err := os.MkdirAll(filepath.Join(tmpDir, "prompts"), 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	// Create invalid YAML
-	os.WriteFile(filepath.Join(tmpDir, "scenario.yaml"), []byte("invalid: [yaml:"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "system_prompt.md"), []byte("test"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "prompt.md"), []byte("test"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte("results/\n*.svg"), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, "scenario.yaml"), []byte("invalid: [yaml:"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "system_prompt.md"), []byte("test"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "prompt.md"), []byte("test"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte("results/\n*.svg"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	for _, p := range RequiredPersonas {
-		os.WriteFile(filepath.Join(tmpDir, "prompts", p+".md"), []byte("test"), 0644)
+		if err := os.WriteFile(filepath.Join(tmpDir, "prompts", p+".md"), []byte("test"), 0644); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	result := ValidateStructure(tmpDir)
@@ -86,13 +90,11 @@ func TestValidateStructure_InvalidYAML(t *testing.T) {
 }
 
 func TestValidateStructure_MissingGitignoreEntries(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "scenario-test-*")
-	if err != nil {
+	tmpDir := t.TempDir()
+
+	if err := os.MkdirAll(filepath.Join(tmpDir, "prompts"), 0755); err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
-
-	os.MkdirAll(filepath.Join(tmpDir, "prompts"), 0755)
 
 	// Create valid YAML with minimal required fields
 	yaml := `name: test
@@ -110,13 +112,23 @@ domains:
     outputs:
       - output.yaml
 `
-	os.WriteFile(filepath.Join(tmpDir, "scenario.yaml"), []byte(yaml), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "system_prompt.md"), []byte("test"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "prompt.md"), []byte("test"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte(""), 0644) // Empty gitignore
+	if err := os.WriteFile(filepath.Join(tmpDir, "scenario.yaml"), []byte(yaml), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "system_prompt.md"), []byte("test"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "prompt.md"), []byte("test"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte(""), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	for _, p := range RequiredPersonas {
-		os.WriteFile(filepath.Join(tmpDir, "prompts", p+".md"), []byte("test"), 0644)
+		if err := os.WriteFile(filepath.Join(tmpDir, "prompts", p+".md"), []byte("test"), 0644); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	result := ValidateStructure(tmpDir)
@@ -137,13 +149,11 @@ domains:
 }
 
 func TestValidateStructure_EmptyPrompts(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "scenario-test-*")
-	if err != nil {
+	tmpDir := t.TempDir()
+
+	if err := os.MkdirAll(filepath.Join(tmpDir, "prompts"), 0755); err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
-
-	os.MkdirAll(filepath.Join(tmpDir, "prompts"), 0755)
 
 	yaml := `name: test
 description: test scenario
@@ -160,13 +170,23 @@ domains:
     outputs:
       - output.yaml
 `
-	os.WriteFile(filepath.Join(tmpDir, "scenario.yaml"), []byte(yaml), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "system_prompt.md"), []byte("   "), 0644) // Only whitespace
-	os.WriteFile(filepath.Join(tmpDir, "prompt.md"), []byte(""), 0644)           // Empty
-	os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte("results/\n*.svg"), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, "scenario.yaml"), []byte(yaml), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "system_prompt.md"), []byte("   "), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "prompt.md"), []byte(""), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte("results/\n*.svg"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	for _, p := range RequiredPersonas {
-		os.WriteFile(filepath.Join(tmpDir, "prompts", p+".md"), []byte("test"), 0644)
+		if err := os.WriteFile(filepath.Join(tmpDir, "prompts", p+".md"), []byte("test"), 0644); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	result := ValidateStructure(tmpDir)

@@ -56,7 +56,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	mcpConfigPath := filepath.Join(tmpDir, "mcp.json")
 

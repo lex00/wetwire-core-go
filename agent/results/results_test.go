@@ -128,9 +128,7 @@ func TestSession_JSON(t *testing.T) {
 
 func TestWriter_Write(t *testing.T) {
 	// Create temp directory
-	tmpDir, err := os.MkdirTemp("", "results-test-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	// Create session with score
 	session := NewSession("beginner", "test")
@@ -146,7 +144,7 @@ func TestWriter_Write(t *testing.T) {
 
 	// Write results
 	writer := NewWriter(tmpDir)
-	err = writer.Write(session)
+	err := writer.Write(session)
 	require.NoError(t, err)
 
 	// Verify RESULTS.md was created

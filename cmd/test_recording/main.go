@@ -18,7 +18,10 @@ func (s *DemoSession) GetMessages() []scenario.SessionMessage { return s.message
 
 func main() {
 	outputDir := "/tmp/recordings"
-	os.MkdirAll(outputDir, 0755)
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create output directory: %v\n", err)
+		os.Exit(1)
+	}
 
 	// Create a session with realistic conversation
 	session := &DemoSession{

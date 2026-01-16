@@ -188,12 +188,12 @@ func (s *Skill) executeScenario(ctx context.Context, config *scenarioPkg.Scenari
 	// Write results
 	writer := results.NewWriter(s.outputDir)
 	if err := writer.Write(session); err != nil {
-		fmt.Fprintf(s.output, "Warning: failed to write results: %v\n", err)
+		_, _ = fmt.Fprintf(s.output, "Warning: failed to write results: %v\n", err)
 	} else {
-		fmt.Fprintf(s.output, "\nResults written to %s/%s/RESULTS.md\n", s.outputDir, persona)
+		_, _ = fmt.Fprintf(s.output, "\nResults written to %s/%s/RESULTS.md\n", s.outputDir, persona)
 	}
 
-	fmt.Fprintln(s.output, "Scenario completed successfully!")
+	_, _ = fmt.Fprintln(s.output, "Scenario completed successfully!")
 	return nil
 }
 

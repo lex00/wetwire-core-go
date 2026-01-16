@@ -117,9 +117,10 @@ Follow the execution plan provided in the user prompt, respecting domain depende
 			var textContent string
 			var toolCalls []results.ToolCall
 			for _, block := range resp.Content {
-				if block.Type == "text" {
+				switch block.Type {
+				case "text":
 					textContent += block.Text
-				} else if block.Type == "tool_use" {
+				case "tool_use":
 					toolCalls = append(toolCalls, results.ToolCall{
 						Name:  block.Name,
 						Input: string(block.Input),
@@ -198,7 +199,7 @@ func (a *ScenarioAgent) executeMCPTool(ctx context.Context, name string, input j
 	}
 
 	// Log tool execution to output
-	fmt.Fprintf(a.output, "[Tool: %s] %s\n", name, result)
+	_, _ = fmt.Fprintf(a.output, "[Tool: %s] %s\n", name, result)
 
 	// Track generated files in session
 	if a.session != nil {

@@ -136,9 +136,7 @@ func TestInstall(t *testing.T) {
 	}
 
 	// Override home directory for test
-	originalHome := os.Getenv("HOME")
-	os.Setenv("HOME", homeDir)
-	defer os.Setenv("HOME", originalHome)
+	t.Setenv("HOME", homeDir)
 
 	config := Config{
 		AgentName:   "test-agent",

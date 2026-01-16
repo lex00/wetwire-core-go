@@ -91,9 +91,10 @@ func TestServer_GetTools(t *testing.T) {
 	// Verify tool1
 	var tool1, tool2 *ToolInfo
 	for i := range tools {
-		if tools[i].Name == "tool1" {
+		switch tools[i].Name {
+		case "tool1":
 			tool1 = &tools[i]
-		} else if tools[i].Name == "tool2" {
+		case "tool2":
 			tool2 = &tools[i]
 		}
 	}

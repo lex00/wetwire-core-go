@@ -208,7 +208,7 @@ func TestWriter_EdgeCases(t *testing.T) {
 			setup: func() (*Session, string) {
 				dir := t.TempDir()
 				// Make directory read-only
-				os.Chmod(dir, 0444)
+				_ = os.Chmod(dir, 0444)
 				return NewSession("test", "test"), dir
 			},
 			wantErr: true,
