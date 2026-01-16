@@ -28,22 +28,22 @@ prompts:
   default: prompt.md
 
 domains:
-  - name: aws
-    cli: wetwire-aws
+  - name: domain-a
+    cli: mock-cli-a
     mcp_tools:
       lint: wetwire_lint
       build: wetwire_build
     outputs:
-      - cfn-templates/*.json
+      - templates/*.json
 
 validation:
-  aws:
+  domain-a:
     stacks:
       min: 1
       max: 5
 `
 
-	promptText := "Create a VPC with public and private subnets"
+	promptText := "Create a resource with multiple components"
 
 	err := os.WriteFile(scenarioPath, []byte(scenarioYAML), 0644)
 	require.NoError(t, err)
@@ -62,10 +62,10 @@ validation:
 
 	// Verify instruction output
 	assert.Contains(t, output, "test_scenario")
-	assert.Contains(t, output, "aws")
+	assert.Contains(t, output, "domain-a")
 	assert.Contains(t, output, "wetwire_lint")
 	assert.Contains(t, output, "wetwire_build")
-	assert.Contains(t, output, "VPC with public and private subnets")
+	assert.Contains(t, output, "resource with multiple components")
 	assert.Contains(t, output, "Stacks: min 1, max 5")
 }
 
@@ -156,34 +156,34 @@ name: multi_domain
 description: Multi-domain test
 
 domains:
-  - name: aws
-    cli: wetwire-aws
+  - name: domain-a
+    cli: mock-cli-a
     mcp_tools:
       lint: wetwire_lint
       build: wetwire_build
     outputs:
-      - cfn-templates/*.json
+      - templates/*.json
 
-  - name: gitlab
-    cli: wetwire-gitlab
+  - name: domain-b
+    cli: mock-cli-b
     mcp_tools:
       lint: wetwire_lint
       build: wetwire_build
     depends_on:
-      - aws
+      - domain-a
     outputs:
-      - .gitlab-ci.yml
+      - config.yml
 
 cross_domain:
-  - from: aws
-    to: gitlab
+  - from: domain-a
+    to: domain-b
     type: artifact_reference
 
 validation:
-  aws:
+  domain-a:
     stacks:
       min: 1
-  gitlab:
+  domain-b:
     pipelines:
       min: 1
 `
@@ -201,13 +201,13 @@ validation:
 	output := buf.String()
 
 	// Verify both domains are present
-	assert.Contains(t, output, "aws")
-	assert.Contains(t, output, "gitlab")
+	assert.Contains(t, output, "domain-a")
+	assert.Contains(t, output, "domain-b")
 
-	// Verify dependency order (aws before gitlab)
-	awsIdx := bytes.Index(buf.Bytes(), []byte("aws"))
-	gitlabIdx := bytes.Index(buf.Bytes(), []byte("gitlab"))
-	assert.Less(t, awsIdx, gitlabIdx, "aws should come before gitlab")
+	// Verify dependency order (domain-a before domain-b)
+	domainAIdx := bytes.Index(buf.Bytes(), []byte("domain-a"))
+	domainBIdx := bytes.Index(buf.Bytes(), []byte("domain-b"))
+	assert.Less(t, domainAIdx, domainBIdx, "domain-a should come before domain-b")
 
 	// Verify cross-domain section
 	assert.Contains(t, output, "cross-domain")

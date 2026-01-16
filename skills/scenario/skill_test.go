@@ -19,42 +19,42 @@ prompts:
   default: prompt.md
 
 domains:
-  - name: aws
-    cli: wetwire-aws
+  - name: domain-a
+    cli: mock-cli-a
     mcp_tools:
       lint: wetwire_lint
       build: wetwire_build
     outputs:
-      - cfn-templates/*.json
+      - templates/*.json
 
-  - name: gitlab
-    cli: wetwire-gitlab
+  - name: domain-b
+    cli: mock-cli-b
     mcp_tools:
       lint: wetwire_lint
       build: wetwire_build
     depends_on:
-      - aws
+      - domain-a
 
 cross_domain:
-  - from: aws
-    to: gitlab
+  - from: domain-a
+    to: domain-b
     type: artifact_reference
 
 validation:
-  aws:
+  domain-a:
     stacks:
       min: 1
-  gitlab:
+  domain-b:
     pipelines:
       min: 1
 `
 
-const testPrompt = `Generate AWS infrastructure and GitLab CI pipeline.
+const testPrompt = `Generate infrastructure and CI pipeline.
 
 Requirements:
-- VPC with public and private subnets
-- EKS cluster
-- GitLab pipeline for deployment
+- Resource with multiple components
+- Cluster configuration
+- Pipeline for deployment
 `
 
 func TestSkillName(t *testing.T) {
@@ -90,10 +90,10 @@ func TestSkillRun(t *testing.T) {
 	// Should contain scenario name
 	assert.Contains(t, output, "test_scenario")
 
-	// Should contain domain instructions in order (aws before gitlab)
-	awsIdx := bytes.Index([]byte(output), []byte("aws"))
-	gitlabIdx := bytes.Index([]byte(output), []byte("gitlab"))
-	assert.Less(t, awsIdx, gitlabIdx, "aws should come before gitlab")
+	// Should contain domain instructions in order (domain-a before domain-b)
+	domainAIdx := bytes.Index([]byte(output), []byte("domain-a"))
+	domainBIdx := bytes.Index([]byte(output), []byte("domain-b"))
+	assert.Less(t, domainAIdx, domainBIdx, "domain-a should come before domain-b")
 
 	// Should contain MCP tool calls
 	assert.Contains(t, output, "wetwire_lint")
@@ -102,12 +102,12 @@ func TestSkillRun(t *testing.T) {
 
 func TestSkillRunSingleDomain(t *testing.T) {
 	singleDomainYAML := `
-name: simple_aws
+name: simple_scenario
 description: Single domain scenario
 
 domains:
-  - name: aws
-    cli: wetwire-aws
+  - name: domain-a
+    cli: mock-cli-a
     mcp_tools:
       lint: wetwire_lint
 `
@@ -125,8 +125,8 @@ domains:
 	require.NoError(t, err)
 
 	output := buf.String()
-	assert.Contains(t, output, "simple_aws")
-	assert.Contains(t, output, "aws")
+	assert.Contains(t, output, "simple_scenario")
+	assert.Contains(t, output, "domain-a")
 }
 
 func TestSkillRunWithFilePath(t *testing.T) {
@@ -136,8 +136,8 @@ func TestSkillRunWithFilePath(t *testing.T) {
 	simpleYAML := `
 name: custom_scenario
 domains:
-  - name: k8s
-    cli: wetwire-k8s
+  - name: domain-c
+    cli: mock-cli-c
 `
 	err := os.WriteFile(scenarioPath, []byte(simpleYAML), 0644)
 	require.NoError(t, err)

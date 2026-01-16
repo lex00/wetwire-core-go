@@ -48,22 +48,22 @@ func TestGenerateMCPConfig_WithServerName(t *testing.T) {
 	config := Config{
 		AgentName:     "test-agent",
 		AgentPrompt:   "Test prompt",
-		MCPServerName: "wetwire-gitlab",
-		MCPCommand:    "/Users/alex/go/bin/wetwire-gitlab",
+		MCPServerName: "mock-cli-b",
+		MCPCommand:    "/path/to/mock-cli-b",
 		MCPArgs:       []string{"mcp"},
 	}
 
 	mcpConfig := GenerateMCPConfig(config)
 
 	// Server key should be MCPServerName, not the full path
-	server, ok := mcpConfig.MCPServers["wetwire-gitlab"]
+	server, ok := mcpConfig.MCPServers["mock-cli-b"]
 	if !ok {
-		t.Error("expected wetwire-gitlab server in config")
+		t.Error("expected mock-cli-b server in config")
 	}
 
 	// Command should be the full path
-	if server.Command != "/Users/alex/go/bin/wetwire-gitlab" {
-		t.Errorf("expected command '/Users/alex/go/bin/wetwire-gitlab', got %q", server.Command)
+	if server.Command != "/path/to/mock-cli-b" {
+		t.Errorf("expected command '/path/to/mock-cli-b', got %q", server.Command)
 	}
 
 	// Args should be just ["mcp"]

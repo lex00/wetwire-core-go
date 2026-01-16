@@ -48,11 +48,11 @@ func TestStandardToolDefinitions(t *testing.T) {
 }
 
 func TestStandardToolDefinitionsDomainCustomization(t *testing.T) {
-	githubDefs := StandardToolDefinitions("github")
-	awsDefs := StandardToolDefinitions("aws")
+	domainADefs := StandardToolDefinitions("domain-a")
+	domainBDefs := StandardToolDefinitions("domain-b")
 
 	// Descriptions should include domain name
-	for _, def := range githubDefs {
+	for _, def := range domainADefs {
 		if def.Name == "wetwire_init" {
 			if def.Description == "" {
 				t.Error("expected non-empty description")
@@ -60,9 +60,9 @@ func TestStandardToolDefinitionsDomainCustomization(t *testing.T) {
 		}
 	}
 
-	// AWS should have different descriptions
-	for i, def := range awsDefs {
-		if githubDefs[i].Description == awsDefs[i].Description && def.Name != "wetwire_lint" && def.Name != "wetwire_list" && def.Name != "wetwire_graph" {
+	// Domain-b should have different descriptions
+	for i, def := range domainBDefs {
+		if domainADefs[i].Description == domainBDefs[i].Description && def.Name != "wetwire_lint" && def.Name != "wetwire_list" && def.Name != "wetwire_graph" {
 			// lint/list/graph descriptions don't include domain
 			// but init/build/validate/import should differ
 			t.Logf("tool %s has same description for both domains (may be expected)", def.Name)
