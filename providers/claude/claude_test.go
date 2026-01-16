@@ -235,10 +235,10 @@ func TestParseJSONOutput(t *testing.T) {
 	p := &Provider{}
 
 	tests := []struct {
-		name       string
-		output     string
-		wantText   string
-		wantErr    bool
+		name     string
+		output   string
+		wantText string
+		wantErr  bool
 	}{
 		{
 			name:     "success result",
@@ -383,10 +383,10 @@ func TestAvailable(t *testing.T) {
 
 func TestSystemPromptCombination(t *testing.T) {
 	tests := []struct {
-		name           string
-		configPrompt   string
-		requestPrompt  string
-		wantContains   string
+		name          string
+		configPrompt  string
+		requestPrompt string
+		wantContains  string
 	}{
 		{
 			name:          "config only",
