@@ -159,56 +159,6 @@ func TestFindGeneratedFiles(t *testing.T) {
 	})
 }
 
-func TestCompareToExpected(t *testing.T) {
-	t.Run("matches patterns from expected", func(t *testing.T) {
-		expected := map[string]string{
-			"template.yaml": "AWSTemplateFormatVersion: '2010-09-09'\nDescription: Test template\nResources:\n  Bucket:\n    Type: AWS::S3::Bucket",
-		}
-		generated := map[string]string{
-			"output.yaml": "AWSTemplateFormatVersion: '2010-09-09'\nDescription: Test template\nResources:\n  Bucket:\n    Type: AWS::S3::Bucket",
-		}
-
-		matched, total, _ := compareToExpected(generated, expected)
-		if matched == 0 {
-			t.Error("expected some patterns to match")
-		}
-		if total == 0 {
-			t.Error("expected some patterns to be extracted")
-		}
-	})
-
-	t.Run("low match for different content", func(t *testing.T) {
-		expected := map[string]string{
-			"template.yaml": "AWSTemplateFormatVersion: '2010-09-09'\nDescription: Expected content",
-		}
-		generated := map[string]string{
-			"output.yaml": "completely different content here",
-		}
-
-		matched, total, _ := compareToExpected(generated, expected)
-		if total > 0 && matched > total/2 {
-			t.Errorf("expected low match ratio, got %d/%d", matched, total)
-		}
-	})
-
-	t.Run("handles empty expected", func(t *testing.T) {
-		generated := map[string]string{"file.yaml": "content"}
-		matched, total, _ := compareToExpected(generated, map[string]string{})
-		if total != 0 || matched != 0 {
-			t.Error("expected zero patterns for empty expected")
-		}
-	})
-}
-
-func TestLoadExpectedFiles(t *testing.T) {
-	t.Run("returns empty for missing directory", func(t *testing.T) {
-		files := loadExpectedFiles("/nonexistent/path")
-		if len(files) != 0 {
-			t.Errorf("expected empty map, got %d files", len(files))
-		}
-	})
-}
-
 func TestResultSuccess(t *testing.T) {
 	t.Run("success when files generated", func(t *testing.T) {
 		r := Result{

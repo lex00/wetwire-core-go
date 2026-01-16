@@ -158,13 +158,22 @@ func TestScenarioAgent_GetMCPTools(t *testing.T) {
 	tools := agent.getMCPTools()
 
 	assert.Len(t, tools, 2)
-	assert.Equal(t, "tool1", tools[0].Name)
-	assert.Equal(t, "First tool", tools[0].Description)
-	assert.NotNil(t, tools[0].InputSchema.Properties)
-	assert.Contains(t, tools[0].InputSchema.Required, "param1")
 
-	assert.Equal(t, "tool2", tools[1].Name)
-	assert.Equal(t, "Second tool", tools[1].Description)
+	// Find tools by name (order is not deterministic)
+	toolMap := make(map[string]providers.Tool)
+	for _, tool := range tools {
+		toolMap[tool.Name] = tool
+	}
+
+	tool1, ok := toolMap["tool1"]
+	assert.True(t, ok, "tool1 should exist")
+	assert.Equal(t, "First tool", tool1.Description)
+	assert.NotNil(t, tool1.InputSchema.Properties)
+	assert.Contains(t, tool1.InputSchema.Required, "param1")
+
+	tool2, ok := toolMap["tool2"]
+	assert.True(t, ok, "tool2 should exist")
+	assert.Equal(t, "Second tool", tool2.Description)
 }
 
 func TestScenarioAgent_ExecuteMCPTool(t *testing.T) {

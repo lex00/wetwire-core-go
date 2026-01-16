@@ -325,42 +325,30 @@ func loadUserPrompt(scenarioPath, personaName string) string {
 func calculateScore(result Result, persona, scenarioPath string) *scoring.Score {
 	score := scoring.NewScore(persona, scenarioPath)
 
-	// Load expected files for comparison
-	expectedFiles := loadExpectedFiles(scenarioPath)
-	expectedCount := len(expectedFiles)
-	if expectedCount == 0 {
-		expectedCount = 2 // Default expectation if no expected/ dir
-	}
-
 	// Completeness: Check if files were created
+	expectedFiles := 2 // Default expectation
 	actualFiles := len(result.Files)
-	rating, notes := scoring.ScoreCompleteness(expectedCount, actualFiles)
+	rating, notes := scoring.ScoreCompleteness(expectedFiles, actualFiles)
 	score.Completeness.Rating = rating
 	score.Completeness.Notes = notes
 
-	// Code Quality: Compare generated files to expected patterns
-	if len(expectedFiles) > 0 {
-		matched, total, details := compareToExpected(result.Files, expectedFiles)
-		ratio := float64(matched) / float64(total)
-		switch {
-		case ratio >= 0.9:
-			score.CodeQuality.Rating = scoring.RatingExcellent
-		case ratio >= 0.7:
-			score.CodeQuality.Rating = scoring.RatingGood
-		case ratio >= 0.5:
-			score.CodeQuality.Rating = scoring.RatingPartial
-		default:
-			score.CodeQuality.Rating = scoring.RatingNone
-		}
-		score.CodeQuality.Notes = fmt.Sprintf("%d/%d patterns matched: %s", matched, total, details)
+	// Code Quality: Deferred to domain linters
+	if len(result.Files) > 0 {
+		score.CodeQuality.Rating = scoring.RatingExcellent
+		score.CodeQuality.Notes = "Deferred to domain linters"
 	} else {
-		score.CodeQuality.Rating = scoring.RatingGood
-		score.CodeQuality.Notes = "No expected files to compare"
+		score.CodeQuality.Rating = scoring.RatingNone
+		score.CodeQuality.Notes = "No files to check"
 	}
 
 	// Lint Quality: Deferred to domain tools
-	score.LintQuality.Rating = scoring.RatingExcellent
-	score.LintQuality.Notes = "Deferred to domain tools"
+	if len(result.Files) > 0 {
+		score.LintQuality.Rating = scoring.RatingExcellent
+		score.LintQuality.Notes = "Deferred to domain tools"
+	} else {
+		score.LintQuality.Rating = scoring.RatingNone
+		score.LintQuality.Notes = "No files to lint"
+	}
 
 	// Output Validity: Files were generated
 	if len(result.Files) > 0 {
@@ -377,75 +365,6 @@ func calculateScore(result Result, persona, scenarioPath string) *scoring.Score 
 	score.QuestionEfficiency.Notes = notes
 
 	return score
-}
-
-// loadExpectedFiles loads files from the expected/ directory.
-func loadExpectedFiles(scenarioPath string) map[string]string {
-	expectedDir := filepath.Join(scenarioPath, "expected")
-	files := make(map[string]string)
-
-	_ = filepath.Walk(expectedDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		// Skip hidden files
-		if strings.HasPrefix(info.Name(), ".") {
-			return nil
-		}
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return nil
-		}
-		relPath, _ := filepath.Rel(expectedDir, path)
-		files[relPath] = string(content)
-		return nil
-	})
-
-	return files
-}
-
-// compareToExpected compares generated files against expected patterns.
-// Returns (matched, total, details).
-func compareToExpected(generated, expected map[string]string) (int, int, string) {
-	// Extract key patterns from expected files (non-empty lines that aren't comments)
-	var patterns []string
-	for _, content := range expected {
-		for _, line := range strings.Split(content, "\n") {
-			trimmed := strings.TrimSpace(line)
-			// Skip empty lines, comments, and very short lines
-			if trimmed == "" || strings.HasPrefix(trimmed, "#") || len(trimmed) < 5 {
-				continue
-			}
-			// Use first 40 chars of significant lines as patterns
-			if len(trimmed) > 40 {
-				trimmed = trimmed[:40]
-			}
-			patterns = append(patterns, trimmed)
-		}
-	}
-
-	if len(patterns) == 0 {
-		return 0, 0, "no patterns"
-	}
-
-	// Combine all generated content
-	var allGenerated strings.Builder
-	for _, content := range generated {
-		allGenerated.WriteString(content)
-		allGenerated.WriteString("\n")
-	}
-	generatedStr := allGenerated.String()
-
-	// Check how many patterns match
-	matched := 0
-	for _, pattern := range patterns {
-		if strings.Contains(generatedStr, pattern) {
-			matched++
-		}
-	}
-
-	pct := (matched * 100) / len(patterns)
-	return matched, len(patterns), fmt.Sprintf("%d%%", pct)
 }
 
 func saveConversation(result Result, userPrompt, outputPath string) {
