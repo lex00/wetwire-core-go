@@ -301,6 +301,47 @@ func (s *Server) handleToolsCall(ctx context.Context, req *JSONRPCRequest) (*JSO
 	}, nil
 }
 
+// ExecuteTool executes a tool directly without going through stdio.
+// This enables in-process tool execution for agent workflows.
+func (s *Server) ExecuteTool(ctx context.Context, name string, args map[string]any) (string, error) {
+	s.mu.RLock()
+	tool, exists := s.tools[name]
+	s.mu.RUnlock()
+
+	if !exists {
+		return "", fmt.Errorf("tool not found: %s", name)
+	}
+
+	return tool.Handler(ctx, args)
+}
+
+// GetTools returns the list of registered tools for provider integration.
+// This converts MCP tools to the ToolInfo format for the Agent interface.
+func (s *Server) GetTools() []ToolInfo {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	tools := make([]ToolInfo, 0, len(s.tools))
+	for _, tool := range s.tools {
+		info := ToolInfo{
+			Name:        tool.Name,
+			Description: tool.Description,
+		}
+		if tool.InputSchema != nil {
+			info.InputSchema = tool.InputSchema
+		} else {
+			// Default empty schema
+			info.InputSchema = map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}
+		}
+		tools = append(tools, info)
+	}
+
+	return tools
+}
+
 // debugf logs a debug message if debug mode is enabled.
 func (s *Server) debugf(format string, args ...any) {
 	if s.config.Debug || os.Getenv("WETWIRE_MCP_DEBUG") != "" {

@@ -77,7 +77,7 @@ func TestIntegration_FullScenarioWorkflow(t *testing.T) {
 	})
 
 	t.Run("skill generates instructions", func(t *testing.T) {
-		skill := skillscenario.New()
+		skill := skillscenario.New(nil, nil) // nil Provider and MCPServer for instruction-only mode
 		var buf bytes.Buffer
 		skill.SetOutput(&buf)
 
@@ -355,7 +355,7 @@ func TestIntegration_RecordingWithTermsvg(t *testing.T) {
 			OutputDir: tmpDir,
 		}, func() error {
 			// Create skill inside closure so it gets the redirected stdout
-			skill := skillscenario.New()
+			skill := skillscenario.New(nil, nil) // nil Provider and MCPServer for instruction-only mode
 			skill.SetOutput(os.Stdout)
 			return skill.Run(context.Background(), scenarioDir)
 		})
