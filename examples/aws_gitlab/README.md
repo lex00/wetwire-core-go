@@ -17,16 +17,18 @@ The scenario creates:
 ```
 aws_gitlab/
 ├── README.md           # This file
+├── go.mod              # Go module (standalone)
+├── main.go             # CLI entry point
 ├── scenario.yaml       # Scenario definition
 ├── prompt.md           # Default user prompt
+├── system_prompt.md    # System prompt for the agent
 ├── prompts/
 │   ├── beginner.md     # Detailed explanations for newcomers
 │   ├── intermediate.md # Standard instructions
 │   ├── expert.md       # Brief, assumes knowledge
 │   ├── terse.md        # Minimal words
 │   └── verbose.md      # Highly detailed requirements
-└── recordings/
-    └── aws_gitlab_demo.svg  # Animated demo
+└── results/            # Generated results (gitignored SVGs)
 ```
 
 ## Personas
@@ -43,102 +45,63 @@ The scenario includes prompts for different developer personas:
 
 ## Running the Scenario
 
-### Quick Start (No API Key Required)
+### Prerequisites
 
-Run the scenario using Claude Code as the AI backend:
+- Go 1.23+
+- [Claude Code CLI](https://github.com/anthropics/claude-code) installed and authenticated
+
+### Quick Start
 
 ```bash
-# Run all 6 personas and save results
-go run ./cmd/run_scenario ./examples/aws_gitlab --all ./examples/aws_gitlab/results
+cd examples/aws_gitlab
 
-# Run single persona
-go run ./cmd/run_scenario ./examples/aws_gitlab expert ./output
+# Run single persona (default: intermediate)
+go run . --persona intermediate --verbose
+
+# Run all 5 personas in parallel
+go run . --all
+
+# Specify output directory
+go run . --all --output ./my-results
 ```
 
-Results are saved per persona with RESULTS.md containing:
-- Claude's response
-- Generated CloudFormation template
-- Generated GitLab CI pipeline
+### CLI Options
 
-See `results/SUMMARY.md` for a comparison table across all personas.
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--persona` | `intermediate` | Persona to run (beginner, intermediate, expert, terse, verbose) |
+| `--all` | false | Run all 5 personas in parallel |
+| `--verbose` | false | Show streaming output |
+| `--output` | `./results` | Output directory for results |
 
-### Programmatic Usage
+### Results
 
-#### Load and Validate
+Results are saved per persona:
 
-```go
-import "github.com/lex00/wetwire-core-go/scenario"
-
-config, err := scenario.Load("./examples/aws_gitlab")
-if err != nil {
-    log.Fatal(err)
-}
-
-result := scenario.Validate(config)
-if !result.IsValid() {
-    log.Fatal(result.Error())
-}
+```
+results/
+├── SUMMARY.md              # Comparison table across all personas
+├── beginner/
+│   ├── RESULTS.md          # Score and file list
+│   ├── conversation.txt    # Full prompt and response
+│   ├── cfn-templates/
+│   │   └── s3-bucket.yaml  # Generated CloudFormation template
+│   └── .gitlab-ci.yml      # Generated GitLab pipeline
+├── intermediate/
+│   └── ...
+└── ...
 ```
 
-#### Load a Specific Persona
+### Scoring
 
-```go
-config, _ := scenario.Load("./examples/aws_gitlab")
+Each persona is scored on 4 dimensions (0-12 scale):
 
-// Load beginner prompt
-prompt, _ := config.GetPrompt("beginner")
-
-// Or load expert prompt
-prompt, _ := config.GetPrompt("expert")
-```
-
-#### Execute with Claude Provider (No API Key)
-
-```go
-import (
-    "github.com/lex00/wetwire-core-go/providers"
-    "github.com/lex00/wetwire-core-go/providers/claude"
-)
-
-provider, _ := claude.New(claude.Config{
-    WorkDir:      "/path/to/output",
-    SystemPrompt: "You are an infrastructure code generator...",
-})
-
-resp, _ := provider.CreateMessage(ctx, providers.MessageRequest{
-    Messages: []providers.Message{
-        providers.NewUserMessage(scenarioInstructions),
-    },
-})
-```
-
-#### Execute with Anthropic Provider (Requires API Key)
-
-```go
-import (
-    "github.com/lex00/wetwire-core-go/agent/agents"
-    "github.com/lex00/wetwire-core-go/mcp"
-    "github.com/lex00/wetwire-core-go/providers/anthropic"
-)
-
-// Create MCP server with AWS/GitLab tools
-mcpServer := mcp.NewServer(mcp.Config{Name: "aws-gitlab"})
-mcp.RegisterStandardToolsWithDefaults(mcpServer, "aws", handlers)
-
-// Create provider
-provider, _ := anthropic.New(anthropic.Config{})
-
-// Create agent
-agent, _ := agents.NewAgent(agents.AgentConfig{
-    Provider:  provider,
-    MCPServer: agents.NewMCPServerAdapter(mcpServer),
-    SystemPrompt: systemPrompt,
-})
-
-// Run with chosen persona
-prompt, _ := config.GetPrompt("intermediate")
-agent.Run(ctx, prompt)
-```
+| Dimension | Description |
+|-----------|-------------|
+| Completeness | Were all required files generated? |
+| Lint Quality | Deferred to domain tools |
+| Output Validity | Are outputs well-formed? |
+| Question Efficiency | Appropriate clarifying questions? |
 
 ## Cross-Domain Validation
 
@@ -167,7 +130,6 @@ output/
 └── .gitlab-ci.yml          # GitLab pipeline (validate + publish)
 ```
 
-## See Also
+## Dependencies
 
-- [unified_agent example](../unified_agent/) - Agent architecture pattern
-- [mcp_server example](../mcp_server/) - MCP server creation
+This example uses [wetwire-core-go](https://github.com/lex00/wetwire-core-go) for the scenario runner. The `go.mod` includes a replace directive for local development.
