@@ -187,22 +187,23 @@ func buildAllowedTools(domains []scenario.DomainSpec) []string {
 func buildDomainSystemPrompt(config *scenario.ScenarioConfig) string {
 	var sb strings.Builder
 
-	sb.WriteString("You are an infrastructure code generator using wetwire domain tools.\n\n")
+	sb.WriteString("You are an infrastructure code generator using wetwire domain MCP tools.\n\n")
 
-	sb.WriteString("## CRITICAL INSTRUCTIONS\n\n")
-	sb.WriteString("You MUST use the domain-specific wetwire MCP tools to generate infrastructure.\n")
-	sb.WriteString("Do NOT write raw YAML or JSON output files directly.\n")
-	sb.WriteString("Instead, write Go code using wetwire patterns, then use domain tools to build the output.\n\n")
+	sb.WriteString("## ABSOLUTE REQUIREMENTS\n\n")
+	sb.WriteString("1. You MUST use the MCP tools listed below to generate infrastructure.\n")
+	sb.WriteString("2. You MUST NOT write raw YAML, JSON, or CloudFormation files directly.\n")
+	sb.WriteString("3. You MUST write Go code using wetwire patterns, then call domain build tools.\n")
+	sb.WriteString("4. All files MUST be created in the current working directory (use relative paths).\n\n")
 
-	sb.WriteString("## Workflow\n\n")
-	sb.WriteString("For each domain, follow this workflow:\n")
-	sb.WriteString("1. Call the domain's `wetwire_init` tool to initialize the project\n")
-	sb.WriteString("2. Use the Write tool to create Go code with wetwire patterns (typed structs, direct references)\n")
-	sb.WriteString("3. Call the domain's `wetwire_lint` tool to validate the code\n")
-	sb.WriteString("4. Fix any lint issues and re-lint until passing\n")
-	sb.WriteString("5. Call the domain's `wetwire_build` tool to generate the final output\n\n")
+	sb.WriteString("## Required Workflow (follow exactly)\n\n")
+	sb.WriteString("For each domain:\n")
+	sb.WriteString("1. Call `mcp__<domain>__wetwire_init` to scaffold the project\n")
+	sb.WriteString("2. Use Write tool to create Go code (e.g., `infra/bucket.go` for AWS)\n")
+	sb.WriteString("3. Call `mcp__<domain>__wetwire_lint` to validate the Go code\n")
+	sb.WriteString("4. Fix lint errors and re-lint until passing\n")
+	sb.WriteString("5. Call `mcp__<domain>__wetwire_build` to generate the final output\n\n")
 
-	sb.WriteString("## Available Domains and Tools\n\n")
+	sb.WriteString("## Available MCP Tools\n\n")
 
 	for _, domain := range config.Domains {
 		if domain.CLI == "" {
@@ -210,15 +211,13 @@ func buildDomainSystemPrompt(config *scenario.ScenarioConfig) string {
 		}
 
 		sb.WriteString(fmt.Sprintf("### %s Domain\n\n", strings.ToUpper(domain.Name[:1])+domain.Name[1:]))
-		sb.WriteString(fmt.Sprintf("CLI: `%s`\n\n", domain.CLI))
 
-		if len(domain.MCPTools) > 0 {
-			sb.WriteString("Tools:\n")
-			for purpose, toolName := range domain.MCPTools {
-				sb.WriteString(fmt.Sprintf("- `%s` - %s\n", toolName, purpose))
-			}
-			sb.WriteString("\n")
-		}
+		// List tools with full MCP names
+		sb.WriteString("Tools (use these exact names):\n")
+		sb.WriteString(fmt.Sprintf("- `mcp__%s__wetwire_init` - Initialize project\n", domain.Name))
+		sb.WriteString(fmt.Sprintf("- `mcp__%s__wetwire_lint` - Lint Go code\n", domain.Name))
+		sb.WriteString(fmt.Sprintf("- `mcp__%s__wetwire_build` - Generate output\n", domain.Name))
+		sb.WriteString("\n")
 
 		if len(domain.Outputs) > 0 {
 			sb.WriteString(fmt.Sprintf("Expected outputs: %s\n\n", strings.Join(domain.Outputs, ", ")))
