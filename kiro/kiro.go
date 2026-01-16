@@ -102,9 +102,6 @@ func GenerateMCPConfig(config Config) MCPConfig {
 
 // GenerateAgentConfig generates the custom agent configuration.
 func GenerateAgentConfig(config Config) AgentConfig {
-	args := []string{config.MCPCommand}
-	args = append(args, config.MCPArgs...)
-
 	// Ensure WorkDir is set - default to current directory
 	workDir := config.WorkDir
 	if workDir == "" {
@@ -117,7 +114,7 @@ func GenerateAgentConfig(config Config) AgentConfig {
 		MCPServers: map[string]MCPServerConfig{
 			config.MCPCommand: {
 				Command: config.MCPCommand,
-				Args:    args,
+				Args:    config.MCPArgs, // Don't prepend command - it's already in Command field
 				Cwd:     workDir,
 			},
 		},
