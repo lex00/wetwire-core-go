@@ -1,5 +1,0 @@
-# Results directory (generated each run)
-results/
-
-# SVG recordings (large files, generate with --record flag)
-*.svg

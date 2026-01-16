@@ -11,38 +11,38 @@ import (
 
 const testYAML = `
 name: infrastructure_deployment
-description: AWS infrastructure with GitLab CI/CD pipeline
+description: Domain A infrastructure with Domain B CI/CD pipeline
 
 domains:
-  - name: aws
-    cli: wetwire-aws
+  - name: domain-a
+    cli: mock-cli-a
     mcp_tools:
       lint: wetwire_lint
       build: wetwire_build
     outputs:
-      - cfn-templates/*.json
+      - templates/*.json
 
-  - name: gitlab
-    cli: wetwire-gitlab
+  - name: domain-b
+    cli: mock-cli-b
     mcp_tools:
       lint: wetwire_lint
       build: wetwire_build
     depends_on:
-      - aws
+      - domain-a
 
 cross_domain:
-  - from: aws
-    to: gitlab
+  - from: domain-a
+    to: domain-b
     type: artifact_reference
     validation:
       required_refs:
-        - "${aws.vpc.outputs.vpc_id}"
+        - "${domain-a.resource-1.outputs.resource_id}"
 
 validation:
-  aws:
+  domain-a:
     stacks:
       min: 3
-  gitlab:
+  domain-b:
     pipelines:
       min: 1
 `
@@ -52,27 +52,27 @@ func TestParse(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "infrastructure_deployment", config.Name)
-	assert.Equal(t, "AWS infrastructure with GitLab CI/CD pipeline", config.Description)
+	assert.Equal(t, "Domain A infrastructure with Domain B CI/CD pipeline", config.Description)
 
 	require.Len(t, config.Domains, 2)
 
-	aws := config.GetDomain("aws")
-	require.NotNil(t, aws)
-	assert.Equal(t, "wetwire-aws", aws.CLI)
-	assert.Equal(t, "wetwire_lint", aws.MCPTools["lint"])
-	assert.Equal(t, []string{"cfn-templates/*.json"}, aws.Outputs)
+	domainA := config.GetDomain("domain-a")
+	require.NotNil(t, domainA)
+	assert.Equal(t, "mock-cli-a", domainA.CLI)
+	assert.Equal(t, "wetwire_lint", domainA.MCPTools["lint"])
+	assert.Equal(t, []string{"templates/*.json"}, domainA.Outputs)
 
-	gitlab := config.GetDomain("gitlab")
-	require.NotNil(t, gitlab)
-	assert.Equal(t, []string{"aws"}, gitlab.DependsOn)
+	domainB := config.GetDomain("domain-b")
+	require.NotNil(t, domainB)
+	assert.Equal(t, []string{"domain-a"}, domainB.DependsOn)
 
 	require.Len(t, config.CrossDomain, 1)
-	assert.Equal(t, "aws", config.CrossDomain[0].From)
-	assert.Equal(t, "gitlab", config.CrossDomain[0].To)
+	assert.Equal(t, "domain-a", config.CrossDomain[0].From)
+	assert.Equal(t, "domain-b", config.CrossDomain[0].To)
 	assert.Equal(t, "artifact_reference", config.CrossDomain[0].Type)
 
-	assert.Equal(t, 3, config.Validation["aws"].Stacks.Min)
-	assert.Equal(t, 1, config.Validation["gitlab"].Pipelines.Min)
+	assert.Equal(t, 3, config.Validation["domain-a"].Stacks.Min)
+	assert.Equal(t, 1, config.Validation["domain-b"].Pipelines.Min)
 }
 
 func TestParseInvalidYAML(t *testing.T) {
@@ -122,50 +122,50 @@ func TestGetDomainOrder(t *testing.T) {
 	t.Run("simple dependency", func(t *testing.T) {
 		config := &ScenarioConfig{
 			Domains: []DomainSpec{
-				{Name: "gitlab", DependsOn: []string{"aws"}},
-				{Name: "aws"},
+				{Name: "domain-b", DependsOn: []string{"domain-a"}},
+				{Name: "domain-a"},
 			},
 		}
 
 		order, err := GetDomainOrder(config)
 		require.NoError(t, err)
-		assert.Equal(t, []string{"aws", "gitlab"}, order)
+		assert.Equal(t, []string{"domain-a", "domain-b"}, order)
 	})
 
 	t.Run("no dependencies", func(t *testing.T) {
 		config := &ScenarioConfig{
 			Domains: []DomainSpec{
-				{Name: "aws"},
-				{Name: "gitlab"},
+				{Name: "domain-a"},
+				{Name: "domain-b"},
 			},
 		}
 
 		order, err := GetDomainOrder(config)
 		require.NoError(t, err)
 		assert.Len(t, order, 2)
-		assert.Contains(t, order, "aws")
-		assert.Contains(t, order, "gitlab")
+		assert.Contains(t, order, "domain-a")
+		assert.Contains(t, order, "domain-b")
 	})
 
 	t.Run("multi-level dependencies", func(t *testing.T) {
 		config := &ScenarioConfig{
 			Domains: []DomainSpec{
-				{Name: "k8s", DependsOn: []string{"aws"}},
-				{Name: "gitlab", DependsOn: []string{"k8s"}},
-				{Name: "aws"},
+				{Name: "domain-c", DependsOn: []string{"domain-a"}},
+				{Name: "domain-b", DependsOn: []string{"domain-c"}},
+				{Name: "domain-a"},
 			},
 		}
 
 		order, err := GetDomainOrder(config)
 		require.NoError(t, err)
 
-		// aws must come before k8s, k8s before gitlab
-		awsIdx := indexOf(order, "aws")
-		k8sIdx := indexOf(order, "k8s")
-		gitlabIdx := indexOf(order, "gitlab")
+		// domain-a must come before domain-c, domain-c before domain-b
+		domainAIdx := indexOf(order, "domain-a")
+		domainCIdx := indexOf(order, "domain-c")
+		domainBIdx := indexOf(order, "domain-b")
 
-		assert.Less(t, awsIdx, k8sIdx)
-		assert.Less(t, k8sIdx, gitlabIdx)
+		assert.Less(t, domainAIdx, domainCIdx)
+		assert.Less(t, domainCIdx, domainBIdx)
 	})
 
 	t.Run("circular dependency", func(t *testing.T) {
@@ -184,7 +184,7 @@ func TestGetDomainOrder(t *testing.T) {
 	t.Run("unknown dependency", func(t *testing.T) {
 		config := &ScenarioConfig{
 			Domains: []DomainSpec{
-				{Name: "aws", DependsOn: []string{"unknown"}},
+				{Name: "domain-a", DependsOn: []string{"unknown"}},
 			},
 		}
 

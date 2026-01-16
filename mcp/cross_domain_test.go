@@ -13,27 +13,27 @@ import (
 
 const crossDomainScenarioYAML = `
 name: infra_deployment
-description: AWS infrastructure with GitLab CI/CD
+description: Domain A infrastructure with Domain B CI/CD
 
 domains:
-  - name: aws
-    cli: wetwire-aws
+  - name: domain-a
+    cli: mock-cli-a
     outputs:
-      - cfn-templates/*.json
+      - templates/*.json
 
-  - name: gitlab
-    cli: wetwire-gitlab
+  - name: domain-b
+    cli: mock-cli-b
     depends_on:
-      - aws
+      - domain-a
 
 cross_domain:
-  - from: aws
-    to: gitlab
+  - from: domain-a
+    to: domain-b
     type: artifact_reference
     validation:
       required_refs:
-        - "${aws.vpc.outputs.vpc_id}"
-        - "${aws.eks.outputs.cluster_name}"
+        - "${domain-a.resource-1.outputs.resource_id}"
+        - "${domain-a.resource-2.outputs.cluster_name}"
 `
 
 func TestCrossDomainValidationSchema(t *testing.T) {
@@ -58,38 +58,38 @@ func TestValidateCrossDomain(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create output directories
-	awsDir := filepath.Join(tmpDir, "output", "aws")
-	gitlabDir := filepath.Join(tmpDir, "output", "gitlab")
-	require.NoError(t, os.MkdirAll(filepath.Join(awsDir, "cfn-templates"), 0755))
-	require.NoError(t, os.MkdirAll(gitlabDir, 0755))
+	domainADir := filepath.Join(tmpDir, "output", "domain-a")
+	domainBDir := filepath.Join(tmpDir, "output", "domain-b")
+	require.NoError(t, os.MkdirAll(filepath.Join(domainADir, "templates"), 0755))
+	require.NoError(t, os.MkdirAll(domainBDir, 0755))
 
-	// Create AWS output files with proper references
-	vpcTemplate := `{
+	// Create Domain A output files with proper references
+	resource1Template := `{
 		"AWSTemplateFormatVersion": "2010-09-09",
 		"Outputs": {
-			"VpcId": {"Value": {"Ref": "VPC"}, "Export": {"Name": "vpc-id"}}
+			"ResourceId": {"Value": {"Ref": "Resource1"}, "Export": {"Name": "resource-id"}}
 		}
 	}`
-	eksTemplate := `{
+	resource2Template := `{
 		"AWSTemplateFormatVersion": "2010-09-09",
 		"Outputs": {
-			"ClusterName": {"Value": {"Ref": "EKSCluster"}, "Export": {"Name": "cluster-name"}}
+			"ClusterName": {"Value": {"Ref": "Cluster"}, "Export": {"Name": "cluster-name"}}
 		}
 	}`
-	err = os.WriteFile(filepath.Join(awsDir, "cfn-templates", "vpc.json"), []byte(vpcTemplate), 0644)
+	err = os.WriteFile(filepath.Join(domainADir, "templates", "resource-1.json"), []byte(resource1Template), 0644)
 	require.NoError(t, err)
-	err = os.WriteFile(filepath.Join(awsDir, "cfn-templates", "eks.json"), []byte(eksTemplate), 0644)
+	err = os.WriteFile(filepath.Join(domainADir, "templates", "resource-2.json"), []byte(resource2Template), 0644)
 	require.NoError(t, err)
 
-	// Create GitLab pipeline referencing AWS outputs
-	gitlabPipeline := `image: alpine:latest
+	// Create Domain B pipeline referencing Domain A outputs
+	domainBPipeline := `image: alpine:latest
 variables:
-  VPC_ID: "${aws.vpc.outputs.vpc_id}"
-  CLUSTER_NAME: "${aws.eks.outputs.cluster_name}"
+  RESOURCE_ID: "${domain-a.resource-1.outputs.resource_id}"
+  CLUSTER_NAME: "${domain-a.resource-2.outputs.cluster_name}"
 stages:
   - deploy
 `
-	err = os.WriteFile(filepath.Join(gitlabDir, "pipeline.yaml"), []byte(gitlabPipeline), 0644)
+	err = os.WriteFile(filepath.Join(domainBDir, "pipeline.yaml"), []byte(domainBPipeline), 0644)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -105,8 +105,8 @@ stages:
 	require.NoError(t, err)
 
 	// Check domains validated
-	assert.Contains(t, validationResult.DomainsValidated, "aws")
-	assert.Contains(t, validationResult.DomainsValidated, "gitlab")
+	assert.Contains(t, validationResult.DomainsValidated, "domain-a")
+	assert.Contains(t, validationResult.DomainsValidated, "domain-b")
 
 	// Should have cross references
 	assert.NotEmpty(t, validationResult.CrossReferences)
@@ -121,10 +121,10 @@ func TestValidateCrossDomainMissingReferences(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create empty output directories
-	awsDir := filepath.Join(tmpDir, "output", "aws")
-	gitlabDir := filepath.Join(tmpDir, "output", "gitlab")
-	require.NoError(t, os.MkdirAll(awsDir, 0755))
-	require.NoError(t, os.MkdirAll(gitlabDir, 0755))
+	domainADir := filepath.Join(tmpDir, "output", "domain-a")
+	domainBDir := filepath.Join(tmpDir, "output", "domain-b")
+	require.NoError(t, os.MkdirAll(domainADir, 0755))
+	require.NoError(t, os.MkdirAll(domainBDir, 0755))
 
 	ctx := context.Background()
 	result, err := ValidateCrossDomain(ctx, map[string]any{
@@ -156,8 +156,8 @@ func TestValidateCrossDomainNoCrossDomainRefs(t *testing.T) {
 	simpleScanario := `
 name: simple
 domains:
-  - name: aws
-    cli: wetwire-aws
+  - name: domain-a
+    cli: mock-cli-a
 `
 	tmpDir := t.TempDir()
 	scenarioPath := filepath.Join(tmpDir, "scenario.yaml")
@@ -189,24 +189,24 @@ func TestValidateCrossDomainScore(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create output with all references satisfied
-	awsDir := filepath.Join(tmpDir, "output", "aws")
-	gitlabDir := filepath.Join(tmpDir, "output", "gitlab")
-	require.NoError(t, os.MkdirAll(filepath.Join(awsDir, "cfn-templates"), 0755))
-	require.NoError(t, os.MkdirAll(gitlabDir, 0755))
+	domainADir := filepath.Join(tmpDir, "output", "domain-a")
+	domainBDir := filepath.Join(tmpDir, "output", "domain-b")
+	require.NoError(t, os.MkdirAll(filepath.Join(domainADir, "templates"), 0755))
+	require.NoError(t, os.MkdirAll(domainBDir, 0755))
 
-	// AWS templates with outputs
-	vpcTemplate := `{"Outputs": {"VpcId": {"Value": "vpc-123"}}}`
-	eksTemplate := `{"Outputs": {"ClusterName": {"Value": "eks-cluster"}}}`
-	err = os.WriteFile(filepath.Join(awsDir, "cfn-templates", "vpc.json"), []byte(vpcTemplate), 0644)
+	// Domain A templates with outputs
+	resource1Template := `{"Outputs": {"ResourceId": {"Value": "res-123"}}}`
+	resource2Template := `{"Outputs": {"ClusterName": {"Value": "cluster"}}}`
+	err = os.WriteFile(filepath.Join(domainADir, "templates", "resource-1.json"), []byte(resource1Template), 0644)
 	require.NoError(t, err)
-	err = os.WriteFile(filepath.Join(awsDir, "cfn-templates", "eks.json"), []byte(eksTemplate), 0644)
+	err = os.WriteFile(filepath.Join(domainADir, "templates", "resource-2.json"), []byte(resource2Template), 0644)
 	require.NoError(t, err)
 
-	// GitLab pipeline using references
+	// Domain B pipeline using references
 	pipeline := `variables:
-  VPC_ID: "${aws.vpc.outputs.vpc_id}"
-  CLUSTER_NAME: "${aws.eks.outputs.cluster_name}"`
-	err = os.WriteFile(filepath.Join(gitlabDir, "pipeline.yaml"), []byte(pipeline), 0644)
+  RESOURCE_ID: "${domain-a.resource-1.outputs.resource_id}"
+  CLUSTER_NAME: "${domain-a.resource-2.outputs.cluster_name}"`
+	err = os.WriteFile(filepath.Join(domainBDir, "pipeline.yaml"), []byte(pipeline), 0644)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -226,24 +226,24 @@ func TestValidateCrossDomainScore(t *testing.T) {
 
 func TestCrossReferenceResult(t *testing.T) {
 	ref := CrossReferenceResult{
-		From:  "aws/vpc",
-		To:    "gitlab/pipeline",
-		Type:  "vpc_id",
+		From:  "domain-a/resource-1",
+		To:    "domain-b/pipeline",
+		Type:  "resource_id",
 		Valid: true,
 	}
 
-	assert.Equal(t, "aws/vpc", ref.From)
-	assert.Equal(t, "gitlab/pipeline", ref.To)
-	assert.Equal(t, "vpc_id", ref.Type)
+	assert.Equal(t, "domain-a/resource-1", ref.From)
+	assert.Equal(t, "domain-b/pipeline", ref.To)
+	assert.Equal(t, "resource_id", ref.Type)
 	assert.True(t, ref.Valid)
 }
 
 func TestCrossDomainValidationResult(t *testing.T) {
 	result := CrossDomainValidationResult{
 		Valid:            true,
-		DomainsValidated: []string{"aws", "gitlab"},
+		DomainsValidated: []string{"domain-a", "domain-b"},
 		CrossReferences: []CrossReferenceResult{
-			{From: "aws/vpc", To: "gitlab/pipeline", Type: "vpc_id", Valid: true},
+			{From: "domain-a/resource-1", To: "domain-b/pipeline", Type: "resource_id", Valid: true},
 		},
 		Errors: []string{},
 		Score:  15,
