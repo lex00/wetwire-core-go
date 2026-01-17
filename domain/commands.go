@@ -97,11 +97,16 @@ func generateLintCmd(linter Linter) *cobra.Command {
 func generateInitCmd(initializer Initializer) *cobra.Command {
 	var name string
 	var outPath string
+	var scenario bool
+	var description string
 
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialize a new domain project with example code",
-		Long:  "Create a new domain project structure with example code and configuration.",
+		Long: `Create a new domain project structure with example code and configuration.
+
+Use --scenario to create a full scenario structure with prompts/, expected/,
+scenario.yaml, and persona-specific prompt templates.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			format, _ := cmd.Flags().GetString("format")
@@ -109,8 +114,10 @@ func generateInitCmd(initializer Initializer) *cobra.Command {
 			workDir := "."
 			ctx := NewContextWithVerbose(context.Background(), workDir, verbose)
 			opts := InitOpts{
-				Name: name,
-				Path: outPath,
+				Name:        name,
+				Path:        outPath,
+				Scenario:    scenario,
+				Description: description,
 			}
 
 			result, err := initializer.Init(ctx, workDir, opts)
@@ -124,6 +131,8 @@ func generateInitCmd(initializer Initializer) *cobra.Command {
 
 	cmd.Flags().StringVar(&name, "name", "", "Project name")
 	cmd.Flags().StringVar(&outPath, "path", ".", "Output directory (default: current directory)")
+	cmd.Flags().BoolVar(&scenario, "scenario", false, "Create full scenario structure with prompts and expected outputs")
+	cmd.Flags().StringVar(&description, "description", "", "Scenario description (used with --scenario)")
 
 	return cmd
 }

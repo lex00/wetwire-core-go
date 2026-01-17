@@ -141,6 +141,16 @@ type InitOpts struct {
 	// Path is the output directory (defaults to current directory)
 	// VALIDATOR: creates project at path if non-empty
 	Path string
+
+	// Scenario indicates whether to create a full scenario structure
+	// with prompts/, expected/, scenario.yaml, etc.
+	// VALIDATOR: creates scenario structure if true
+	// VALIDATOR-AST: if Scenario supported, "ScaffoldScenario" or "WriteScenario" present in Init
+	Scenario bool
+
+	// Description is a brief description of the scenario (used when Scenario is true)
+	// VALIDATOR: used in scenario.yaml and prompt templates
+	Description string
 }
 
 // Validator validates that generated output conforms to domain specifications.
