@@ -61,6 +61,34 @@ func TestFormatResult(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unsupported format")
 	})
+
+	t.Run("format as raw with string data", func(t *testing.T) {
+		result := NewResultWithData("build complete", `{"template": "cloudformation"}`)
+		output, err := FormatResult(result, "raw")
+
+		require.NoError(t, err)
+		assert.Equal(t, `{"template": "cloudformation"}`, output)
+		// Should NOT contain wrapper
+		assert.NotContains(t, output, "Success")
+		assert.NotContains(t, output, "Data:")
+	})
+
+	t.Run("format as raw with nil data", func(t *testing.T) {
+		result := NewResult("no data")
+		output, err := FormatResult(result, "raw")
+
+		require.NoError(t, err)
+		assert.Equal(t, "", output)
+	})
+
+	t.Run("format as raw with struct data", func(t *testing.T) {
+		data := map[string]string{"key": "value"}
+		result := NewResultWithData("build complete", data)
+		output, err := FormatResult(result, "raw")
+
+		require.NoError(t, err)
+		assert.Equal(t, `{"key":"value"}`, output)
+	})
 }
 
 func TestFormatText(t *testing.T) {

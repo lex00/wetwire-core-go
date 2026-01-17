@@ -9,7 +9,7 @@ import (
 )
 
 // FormatResult formats a Result based on the requested output format.
-// Supported formats: text, json, yaml.
+// Supported formats: text, json, yaml, raw.
 func FormatResult(result *Result, format string) (string, error) {
 	switch strings.ToLower(format) {
 	case "json":
@@ -18,8 +18,10 @@ func FormatResult(result *Result, format string) (string, error) {
 		return formatYAML(result)
 	case "text", "":
 		return formatText(result), nil
+	case "raw":
+		return formatRaw(result)
 	default:
-		return "", fmt.Errorf("unsupported format: %s (supported: text, json, yaml)", format)
+		return "", fmt.Errorf("unsupported format: %s (supported: text, json, yaml, raw)", format)
 	}
 }
 
@@ -81,4 +83,22 @@ func formatText(result *Result) string {
 	}
 
 	return sb.String()
+}
+
+// formatRaw outputs just the Data field without any wrapper.
+// Useful for piping build output directly to files.
+func formatRaw(result *Result) (string, error) {
+	if result.Data == nil {
+		return "", nil
+	}
+	switch v := result.Data.(type) {
+	case string:
+		return v, nil
+	default:
+		bytes, err := json.Marshal(result.Data)
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal raw data: %w", err)
+		}
+		return string(bytes), nil
+	}
 }
