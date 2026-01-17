@@ -9,6 +9,13 @@
   - `ExtractTypeName`, `InferTypeFromValue` for type analysis
   - `IsBuiltinType`, `IsBuiltinIdent`, `IsKeyword` for identifier classification
   - Closes #85
+- `lint/` package for shared linting infrastructure
+  - `Rule`, `FixableRule`, `PackageAwareRule` interfaces for lint rules
+  - `Issue`, `Severity`, `Config` types for lint results and configuration
+  - `LintFile`, `LintDir`, `LintDirRecursive`, `LintBytes` for analysis
+  - `Fix`, `FixFile`, `FixDir` for automatic fixing
+  - `RuleRegistry` for managing rule collections
+  - Closes #86
 - Extended `BuildOpts` with `Output` and `DryRun` fields for common build options
 - Extended `LintOpts` with `Fix` and `Disable` fields for common lint options
 - CLI flags: `--output`, `--dry-run` for build; `--fix`, `--disable` for lint
