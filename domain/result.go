@@ -9,6 +9,9 @@ import (
 // Result represents the outcome of a domain operation.
 // It provides a unified structure for returning success or failure information,
 // optional data, and detailed error information.
+//
+// VALIDATOR: all operations return *Result
+// VALIDATOR-FILE: no custom result types in domain/
 type Result struct {
 	Success bool    `json:"success"`
 	Message string  `json:"message,omitempty"`
@@ -19,6 +22,8 @@ type Result struct {
 // Error represents a structured error with location and context information.
 // It can represent linting errors, validation errors, or any other structured
 // diagnostic information.
+//
+// VALIDATOR: used for lint issues, build errors, validation errors
 type Error struct {
 	Path     string `json:"path,omitempty"`
 	Line     int    `json:"line,omitempty"`
@@ -37,6 +42,8 @@ type Context struct {
 }
 
 // NewResult creates a successful Result with a message.
+//
+// VALIDATOR-AST: domain uses NewResult() not Result{Success: true}
 func NewResult(message string) *Result {
 	return &Result{
 		Success: true,
@@ -45,6 +52,8 @@ func NewResult(message string) *Result {
 }
 
 // NewResultWithData creates a successful Result with a message and data.
+//
+// VALIDATOR-AST: domain uses NewResultWithData() for data returns
 func NewResultWithData(message string, data any) *Result {
 	return &Result{
 		Success: true,
@@ -54,6 +63,8 @@ func NewResultWithData(message string, data any) *Result {
 }
 
 // NewErrorResult creates a failed Result with a message and a single error.
+//
+// VALIDATOR-AST: domain uses NewErrorResult() for single errors
 func NewErrorResult(message string, err Error) *Result {
 	return &Result{
 		Success: false,
@@ -63,6 +74,8 @@ func NewErrorResult(message string, err Error) *Result {
 }
 
 // NewErrorResultMultiple creates a failed Result with a message and multiple errors.
+//
+// VALIDATOR-AST: domain uses NewErrorResultMultiple() for multiple errors
 func NewErrorResultMultiple(message string, errs []Error) *Result {
 	return &Result{
 		Success: false,

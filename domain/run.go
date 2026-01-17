@@ -7,6 +7,10 @@ import (
 // Run creates a CLI from the Domain interface. It returns the root command
 // so domains can add custom commands before executing.
 //
+// VALIDATOR-FILE: main.go calls domain.Run() - CLI auto-generated from interface
+// VALIDATOR-FILE: main.go imports "domain" package from wetwire-core-go
+// VALIDATOR-FILE: no manual command registration (newBuildCmd, newLintCmd, etc.)
+//
 // Example usage:
 //
 //	root := domain.Run(myDomain)
