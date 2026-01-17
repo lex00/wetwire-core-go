@@ -55,6 +55,12 @@ type BuildOpts struct {
 
 	// Type optionally filters build to specific resource types
 	Type string
+
+	// Output specifies the output path for generated files
+	Output string
+
+	// DryRun returns content without writing files
+	DryRun bool
 }
 
 // Linter validates domain resources according to domain-specific rules.
@@ -66,6 +72,12 @@ type Linter interface {
 type LintOpts struct {
 	// Format specifies the output format (e.g., "text", "json")
 	Format string
+
+	// Fix automatically fixes fixable issues
+	Fix bool
+
+	// Disable specifies rules to disable
+	Disable []string
 }
 
 // Initializer creates new domain projects with example code.
