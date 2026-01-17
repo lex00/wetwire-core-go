@@ -5,6 +5,8 @@ package domain
 //
 // VALIDATOR-FILE: domain/*_domain.go exists - domain implementation file required
 // VALIDATOR-AST: "var _ Domain = (*" present - compile-time interface check required
+// VALIDATOR-FILE: type re-exports present - domain package re-exports Context, Result, Error, etc.
+// VALIDATOR-FILE: standard commands present - cmd/ contains design.go, test.go, diff.go, watch.go, mcp.go
 type Domain interface {
 	// Name returns the domain identifier (e.g., "aws", "honeycomb")
 	// VALIDATOR: returns non-empty string
