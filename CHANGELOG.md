@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Added
+- `ast/` package for shared Go AST parsing utilities
+  - `ParseFile`, `ParseDir`, `WalkGoFiles` with `ParseOptions` for configurable skipping
+  - `ExtractImports` for extracting import map from ast.File
+  - `ExtractTypeName`, `InferTypeFromValue` for type analysis
+  - `IsBuiltinType`, `IsBuiltinIdent`, `IsKeyword` for identifier classification
+  - Closes #85
 - Extended `BuildOpts` with `Output` and `DryRun` fields for common build options
 - Extended `LintOpts` with `Fix` and `Disable` fields for common lint options
 - CLI flags: `--output`, `--dry-run` for build; `--fix`, `--disable` for lint
