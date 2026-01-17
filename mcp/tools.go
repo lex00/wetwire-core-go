@@ -61,6 +61,11 @@ var LintSchema = map[string]any{
 			"type":        "boolean",
 			"description": "Automatically fix fixable issues",
 		},
+		"disable": map[string]any{
+			"type":        "array",
+			"items":       map[string]any{"type": "string"},
+			"description": "Rules to disable",
+		},
 		"format": map[string]any{
 			"type":        "string",
 			"enum":        []string{"text", "json"},

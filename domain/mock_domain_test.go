@@ -1,6 +1,7 @@
 package domain_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/lex00/wetwire-core-go/domain"
@@ -147,7 +148,7 @@ func TestCompleteMockDomain_CompileTimeEnforcement(t *testing.T) {
 
 func TestCompleteMockDomain_BasicOperations(t *testing.T) {
 	d := &completeMockDomain{}
-	ctx := domain.NewContext(nil, "/test")
+	ctx := domain.NewContext(context.TODO(), "/test")
 
 	t.Run("Build", func(t *testing.T) {
 		result, err := d.Builder().Build(ctx, "/test/path", domain.BuildOpts{Format: "json"})
@@ -178,7 +179,7 @@ func TestCompleteMockDomain_BasicOperations(t *testing.T) {
 
 func TestCompleteMockDomain_OptionalOperations(t *testing.T) {
 	d := &completeMockFullDomain{}
-	ctx := domain.NewContext(nil, "/test")
+	ctx := domain.NewContext(context.TODO(), "/test")
 
 	t.Run("Import", func(t *testing.T) {
 		result, err := d.Importer().Import(ctx, "/source", domain.ImportOpts{Target: "/target"})
@@ -204,7 +205,7 @@ func TestCompleteMockDomain_OptionalOperations(t *testing.T) {
 
 func TestCompleteMockDomain_ErrorHandling(t *testing.T) {
 	d := &completeMockDomain{}
-	ctx := domain.NewContext(nil, "/test")
+	ctx := domain.NewContext(context.TODO(), "/test")
 
 	t.Run("Lint error", func(t *testing.T) {
 		result, err := d.Linter().Lint(ctx, "/test/error", domain.LintOpts{})
@@ -257,13 +258,13 @@ func TestCompleteMockDomain_MCPGeneration(t *testing.T) {
 
 func TestCompleteMockDomain_ContextUsage(t *testing.T) {
 	t.Run("Context with verbose", func(t *testing.T) {
-		ctx := domain.NewContextWithVerbose(nil, "/test", true)
+		ctx := domain.NewContextWithVerbose(context.TODO(), "/test", true)
 		assert.True(t, ctx.Verbose)
 		assert.Equal(t, "/test", ctx.WorkDir)
 	})
 
 	t.Run("Context without verbose", func(t *testing.T) {
-		ctx := domain.NewContext(nil, "/test")
+		ctx := domain.NewContext(context.TODO(), "/test")
 		assert.False(t, ctx.Verbose)
 		assert.Equal(t, "/test", ctx.WorkDir)
 	})

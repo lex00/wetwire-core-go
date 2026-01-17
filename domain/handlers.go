@@ -23,6 +23,12 @@ func createBuildHandler(builder Builder) func(ctx context.Context, args map[stri
 		if typ, ok := args["type"].(string); ok {
 			opts.Type = typ
 		}
+		if output, ok := args["output"].(string); ok {
+			opts.Output = output
+		}
+		if dryRun, ok := args["dry_run"].(bool); ok {
+			opts.DryRun = dryRun
+		}
 
 		// Create domain context
 		domainCtx := NewContext(ctx, path)
@@ -57,6 +63,16 @@ func createLintHandler(linter Linter) func(ctx context.Context, args map[string]
 		opts := LintOpts{}
 		if format, ok := args["format"].(string); ok {
 			opts.Format = format
+		}
+		if fix, ok := args["fix"].(bool); ok {
+			opts.Fix = fix
+		}
+		if disable, ok := args["disable"].([]any); ok {
+			for _, d := range disable {
+				if s, ok := d.(string); ok {
+					opts.Disable = append(opts.Disable, s)
+				}
+			}
 		}
 
 		// Create domain context

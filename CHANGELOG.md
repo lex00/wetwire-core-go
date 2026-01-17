@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Added
+- Extended `BuildOpts` with `Output` and `DryRun` fields for common build options
+- Extended `LintOpts` with `Fix` and `Disable` fields for common lint options
+- CLI flags: `--output`, `--dry-run` for build; `--fix`, `--disable` for lint
+- MCP schema updated with `disable` field for lint tool
+- Closes #77
 - Codecov integration for coverage reporting in CI
 - `providers/kiro` package implementing the Provider interface for Kiro CLI
   - Wraps `kiro.RunTest()` for non-interactive AI execution

@@ -11,6 +11,8 @@ import (
 // generateBuildCmd creates the 'build' command for the CLI.
 func generateBuildCmd(builder Builder) *cobra.Command {
 	var buildType string
+	var output string
+	var dryRun bool
 
 	cmd := &cobra.Command{
 		Use:   "build [path]",
@@ -30,6 +32,8 @@ func generateBuildCmd(builder Builder) *cobra.Command {
 			opts := BuildOpts{
 				Format: format,
 				Type:   buildType,
+				Output: output,
+				DryRun: dryRun,
 			}
 
 			result, err := builder.Build(ctx, path, opts)
@@ -42,12 +46,17 @@ func generateBuildCmd(builder Builder) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&buildType, "type", "", "Filter build to specific resource type")
+	cmd.Flags().StringVarP(&output, "output", "o", "", "Output path for generated files")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview output without writing files")
 
 	return cmd
 }
 
 // generateLintCmd creates the 'lint' command for the CLI.
 func generateLintCmd(linter Linter) *cobra.Command {
+	var fix bool
+	var disable []string
+
 	cmd := &cobra.Command{
 		Use:   "lint [path]",
 		Short: "Lint domain resources according to domain rules",
@@ -64,7 +73,9 @@ func generateLintCmd(linter Linter) *cobra.Command {
 
 			ctx := NewContextWithVerbose(context.Background(), path, verbose)
 			opts := LintOpts{
-				Format: format,
+				Format:  format,
+				Fix:     fix,
+				Disable: disable,
 			}
 
 			result, err := linter.Lint(ctx, path, opts)
@@ -75,6 +86,9 @@ func generateLintCmd(linter Linter) *cobra.Command {
 			return outputResult(result, format)
 		},
 	}
+
+	cmd.Flags().BoolVar(&fix, "fix", false, "Automatically fix fixable issues")
+	cmd.Flags().StringSliceVar(&disable, "disable", nil, "Rules to disable (comma-separated)")
 
 	return cmd
 }
