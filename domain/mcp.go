@@ -8,6 +8,10 @@ import (
 // It registers all required tools (build, lint, init, validate) and optional tools
 // (import, list, graph) if the domain implements the corresponding interfaces.
 //
+// VALIDATOR-FILE: if cmd/**/mcp.go exists, < 100 lines - MCP auto-generated
+// VALIDATOR-FILE: no manual tool registration (mcpRegister*, handleWetwire*)
+// VALIDATOR-AST: MCP cmd uses domain.BuildMCPServer() if MCP is implemented
+//
 // The server can be started with server.Start() to begin listening for MCP requests,
 // or used directly via server.ExecuteTool() for in-process tool execution.
 func BuildMCPServer(d Domain) *mcp.Server {
