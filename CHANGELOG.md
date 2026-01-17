@@ -16,6 +16,12 @@
   - `Fix`, `FixFile`, `FixDir` for automatic fixing
   - `RuleRegistry` for managing rule collections
   - Closes #86
+- `discover/` package for shared resource discovery infrastructure
+  - `DiscoveredResource`, `DiscoverResult`, `TypeMatcher` types
+  - `Discover`, `DiscoverFile`, `DiscoverDir`, `DiscoverAST` for resource discovery
+  - `WalkDir`, `CollectGoFiles` for directory traversal
+  - Pluggable `TypeMatcher` for domain-specific resource identification
+  - Closes #87
 - Extended `BuildOpts` with `Output` and `DryRun` fields for common build options
 - Extended `LintOpts` with `Fix` and `Disable` fields for common lint options
 - CLI flags: `--output`, `--dry-run` for build; `--fix`, `--disable` for lint
