@@ -48,6 +48,10 @@ func (m *OutputManifest) ValidateRefs(config *scenario.ScenarioConfig) []error {
 
 // validateRefAgainstManifest checks if a reference can be resolved in the manifest.
 func (m *OutputManifest) validateRefAgainstManifest(ref *scenario.CrossDomainRef) error {
+	if m.Domains == nil {
+		return fmt.Errorf("manifest has no domains")
+	}
+
 	// Check domain exists
 	domainOutput := m.GetDomainOutput(ref.Domain)
 	if domainOutput == nil {
