@@ -6,13 +6,12 @@
 - Output capture for scenario runner
   - `OutputManifest` type to store domain outputs in structured format
   - `DomainOutput` and `ResourceOutput` types for per-domain, per-resource output storage
-  - `NewOutputManifest()`, `AddDomainOutput()`, `GetDomainOutput()` for manifest management
+  - `NewOutputManifest()`, `AddDomainOutput()`, `GetDomainOutput()`, `GetResourceOutput()` for manifest management
   - `SaveToFile()` and `LoadFromFile()` for JSON persistence
+  - `SaveToYAML()` and `LoadFromYAML()` for YAML persistence
+  - `OutputExtractor` with configurable patterns for YAML, JSON, and Go DSL formats
   - `CaptureOutputsFromFiles()` to discover and parse output files matching domain output patterns
-  - `DomainRunner.captureOutputs()` automatically captures outputs after successful execution
-  - `DomainRunResult.OutputManifest` field contains captured outputs
-  - `WorkDir()` method added to `claude.Provider` to expose working directory
-  - RESULTS.md now includes link to outputs.json when outputs are captured
+  - Comprehensive test coverage for output capture functionality
   - Closes #91
 - Cross-domain reference resolver for scenario package
   - `CrossDomainRef` type representing parsed references with Domain, Resource, and Field
