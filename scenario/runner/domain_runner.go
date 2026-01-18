@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/lex00/wetwire-core-go/domain"
 	"github.com/lex00/wetwire-core-go/providers"
 	"github.com/lex00/wetwire-core-go/providers/claude"
 	"github.com/lex00/wetwire-core-go/scenario"
@@ -39,6 +41,10 @@ type DomainRunnerConfig struct {
 
 	// Model overrides the scenario's model setting
 	Model string
+
+	// DependencyOutputs contains outputs from previously executed domains.
+	// These are included in the system prompt so dependent domains can reference them.
+	DependencyOutputs *OutputManifest
 }
 
 // NewDomainRunner creates a new domain runner that uses Claude Code CLI with domain MCP tools.
@@ -106,7 +112,7 @@ func NewDomainRunner(ctx context.Context, cfg DomainRunnerConfig) (*DomainRunner
 		MCPConfigPath:  mcpConfigPath,
 		AllowedTools:   allowedTools,
 		PermissionMode: "acceptEdits",
-		SystemPrompt:   buildDomainSystemPrompt(cfg.ScenarioConfig),
+		SystemPrompt:   buildDomainSystemPrompt(cfg.ScenarioConfig, cfg.DependencyOutputs),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create claude provider: %w", err)
@@ -184,7 +190,8 @@ func buildAllowedTools(domains []scenario.DomainSpec) []string {
 }
 
 // buildDomainSystemPrompt creates the system prompt with domain tool instructions.
-func buildDomainSystemPrompt(config *scenario.ScenarioConfig) string {
+// If dependencyOutputs is provided, it includes outputs from previously executed domains.
+func buildDomainSystemPrompt(config *scenario.ScenarioConfig, dependencyOutputs *OutputManifest) string {
 	var sb strings.Builder
 
 	sb.WriteString("You are an infrastructure code generator using wetwire domain MCP tools.\n\n")
@@ -205,22 +212,22 @@ func buildDomainSystemPrompt(config *scenario.ScenarioConfig) string {
 
 	sb.WriteString("## Available MCP Tools\n\n")
 
-	for _, domain := range config.Domains {
-		if domain.CLI == "" {
+	for _, d := range config.Domains {
+		if d.CLI == "" {
 			continue
 		}
 
-		sb.WriteString(fmt.Sprintf("### %s Domain\n\n", strings.ToUpper(domain.Name[:1])+domain.Name[1:]))
+		sb.WriteString(fmt.Sprintf("### %s Domain\n\n", strings.ToUpper(d.Name[:1])+d.Name[1:]))
 
 		// List tools with full MCP names
 		sb.WriteString("Tools (use these exact names):\n")
-		sb.WriteString(fmt.Sprintf("- `mcp__%s__wetwire_init` - Initialize project\n", domain.Name))
-		sb.WriteString(fmt.Sprintf("- `mcp__%s__wetwire_lint` - Lint Go code\n", domain.Name))
-		sb.WriteString(fmt.Sprintf("- `mcp__%s__wetwire_build` - Generate output\n", domain.Name))
+		sb.WriteString(fmt.Sprintf("- `mcp__%s__wetwire_init` - Initialize project\n", d.Name))
+		sb.WriteString(fmt.Sprintf("- `mcp__%s__wetwire_lint` - Lint Go code\n", d.Name))
+		sb.WriteString(fmt.Sprintf("- `mcp__%s__wetwire_build` - Generate output\n", d.Name))
 		sb.WriteString("\n")
 
-		if len(domain.Outputs) > 0 {
-			sb.WriteString(fmt.Sprintf("Expected outputs: %s\n\n", strings.Join(domain.Outputs, ", ")))
+		if len(d.Outputs) > 0 {
+			sb.WriteString(fmt.Sprintf("Expected outputs: %s\n\n", strings.Join(d.Outputs, ", ")))
 		}
 	}
 
@@ -245,6 +252,38 @@ func buildDomainSystemPrompt(config *scenario.ScenarioConfig) string {
 			}
 		}
 		sb.WriteString("\n")
+	}
+
+	// Add dependency outputs if available
+	if dependencyOutputs != nil && len(dependencyOutputs.Domains) > 0 {
+		sb.WriteString("## Available Dependency Outputs\n\n")
+		sb.WriteString("The following outputs from dependency domains are available for reference:\n\n")
+
+		for domainName, domainOutput := range dependencyOutputs.Domains {
+			if domainOutput == nil || len(domainOutput.Resources) == 0 {
+				continue
+			}
+
+			sb.WriteString(fmt.Sprintf("### %s Domain Outputs\n\n", strings.ToUpper(domainName[:1])+domainName[1:]))
+
+			for resourceName, resourceOutput := range domainOutput.Resources {
+				sb.WriteString(fmt.Sprintf("**%s** (type: %s)\n", resourceName, resourceOutput.Type))
+				if len(resourceOutput.Outputs) > 0 {
+					// Format outputs as JSON for readability
+					outputJSON, err := json.MarshalIndent(resourceOutput.Outputs, "  ", "  ")
+					if err == nil {
+						sb.WriteString("```json\n")
+						sb.WriteString("  ")
+						sb.WriteString(string(outputJSON))
+						sb.WriteString("\n```\n")
+					}
+				}
+				sb.WriteString("\n")
+			}
+		}
+
+		sb.WriteString("Use these outputs when referencing resources from dependency domains.\n")
+		sb.WriteString("Reference syntax: `${domain.resource.outputs.field}`\n\n")
 	}
 
 	return sb.String()
@@ -284,4 +323,69 @@ func resolveCLIPath(cli string) (string, error) {
 	}
 
 	return "", fmt.Errorf("CLI %q not found in PATH or common Go binary locations", cli)
+}
+
+// OutputManifestToCrossDomainContext converts an OutputManifest to a domain.CrossDomainContext.
+// This allows domain implementations to access outputs from dependency domains.
+func OutputManifestToCrossDomainContext(manifest *OutputManifest) *domain.CrossDomainContext {
+	if manifest == nil || len(manifest.Domains) == 0 {
+		return nil
+	}
+
+	crossDomain := domain.NewCrossDomainContext()
+
+	for domainName, domainOutput := range manifest.Domains {
+		if domainOutput == nil {
+			continue
+		}
+
+		domainOutputs := &domain.DomainOutputs{
+			Resources: make(map[string]*domain.ResourceOutputs),
+		}
+
+		for resourceName, resourceOutput := range domainOutput.Resources {
+			domainOutputs.Resources[resourceName] = &domain.ResourceOutputs{
+				Type:    resourceOutput.Type,
+				Outputs: resourceOutput.Outputs,
+			}
+		}
+
+		crossDomain.AddDomainOutputs(domainName, domainOutputs)
+	}
+
+	return crossDomain
+}
+
+// CrossDomainContextToOutputManifest converts a domain.CrossDomainContext to an OutputManifest.
+// This allows converting domain outputs back to the manifest format for persistence.
+func CrossDomainContextToOutputManifest(crossDomain *domain.CrossDomainContext) *OutputManifest {
+	if crossDomain == nil || len(crossDomain.Dependencies) == 0 {
+		return nil
+	}
+
+	manifest := NewOutputManifest()
+
+	for domainName, domainOutputs := range crossDomain.Dependencies {
+		if domainOutputs == nil {
+			continue
+		}
+
+		domainOutput := &DomainOutput{
+			Resources: make(map[string]ResourceOutput),
+		}
+
+		for resourceName, resourceOutputs := range domainOutputs.Resources {
+			if resourceOutputs == nil {
+				continue
+			}
+			domainOutput.Resources[resourceName] = ResourceOutput{
+				Type:    resourceOutputs.Type,
+				Outputs: resourceOutputs.Outputs,
+			}
+		}
+
+		manifest.AddDomainOutput(domainName, domainOutput)
+	}
+
+	return manifest
 }

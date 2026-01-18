@@ -3,6 +3,17 @@
 ## [Unreleased]
 
 ### Added
+- Cross-domain context for passing dependent outputs to domain context
+  - `CrossDomainContext` type to hold outputs from dependency domains
+  - `DomainOutputs` and `ResourceOutputs` types for structured output storage
+  - `NewCrossDomainContext()`, `AddDomainOutputs()`, `GetDomainOutputs()`, `GetResourceOutput()` methods
+  - `HasDependency()` and `DomainNames()` helper methods for context inspection
+  - `domain.Context.CrossDomain` field for accessing dependency outputs
+  - `NewContextWithCrossDomain()` and `Context.WithCrossDomain()` constructors
+  - `OutputManifestToCrossDomainContext()` and `CrossDomainContextToOutputManifest()` conversion functions
+  - `DomainRunnerConfig.DependencyOutputs` field for passing outputs to runner
+  - System prompt now includes "Available Dependency Outputs" section with reference syntax
+  - Closes #93
 - `ast/` package for shared Go AST parsing utilities
   - `ParseFile`, `ParseDir`, `WalkGoFiles` with `ParseOptions` for configurable skipping
   - `ExtractImports` for extracting import map from ast.File
