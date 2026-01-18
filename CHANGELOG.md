@@ -3,6 +3,31 @@
 ## [Unreleased]
 
 ### Added
+- Output capture for scenario runner
+  - `OutputManifest` type to store domain outputs in structured format
+  - `DomainOutput` and `ResourceOutput` types for per-domain, per-resource output storage
+  - `NewOutputManifest()`, `AddDomainOutput()`, `GetDomainOutput()` for manifest management
+  - `SaveToFile()` and `LoadFromFile()` for JSON persistence
+  - `CaptureOutputsFromFiles()` to discover and parse output files matching domain output patterns
+  - `DomainRunner.captureOutputs()` automatically captures outputs after successful execution
+  - `DomainRunResult.OutputManifest` field contains captured outputs
+  - `WorkDir()` method added to `claude.Provider` to expose working directory
+  - RESULTS.md now includes link to outputs.json when outputs are captured
+  - Closes #91
+- Cross-domain reference resolver for scenario package
+  - `CrossDomainRef` type representing parsed references with Domain, Resource, and Field
+  - `ParseRef()` function to parse `${domain.resource.outputs.field}` syntax
+  - `FindRefsInString()` to extract all references from a string
+  - `OutputManifest.ValidateRefs()` to validate references against output manifest
+  - `OutputManifest.ResolveRef()` to resolve references to their values
+  - Closes #92
+- `domain.ScaffoldCrossDomainScenario()` for multi-domain scenario scaffolding
+  - Generates scenario.yaml with multiple domains, cross_domain relationships, and validation rules
+  - Creates system_prompt.md with cross-domain instructions
+  - Generates persona prompts (beginner, intermediate, expert, terse, verbose)
+  - Creates expected/{domain}/ subdirectories for each domain
+  - Closes #94
+- Enhanced `domain.WriteScenario()` to handle nested directory creation for multi-domain scenarios
 - `ast/` package for shared Go AST parsing utilities
   - `ParseFile`, `ParseDir`, `WalkGoFiles` with `ParseOptions` for configurable skipping
   - `ExtractImports` for extracting import map from ast.File
