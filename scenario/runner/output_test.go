@@ -5,321 +5,490 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewOutputManifest(t *testing.T) {
 	manifest := NewOutputManifest()
-	if manifest == nil {
-		t.Fatal("NewOutputManifest returned nil")
-	}
-	if manifest.Domains == nil {
-		t.Error("Domains map is nil")
-	}
-	if len(manifest.Domains) != 0 {
-		t.Error("Expected empty Domains map")
-	}
+
+	assert.NotNil(t, manifest)
+	assert.NotNil(t, manifest.Domains)
+	assert.Empty(t, manifest.Domains)
 }
 
-func TestAddDomainOutput(t *testing.T) {
+func TestOutputManifest_AddDomainOutput(t *testing.T) {
 	manifest := NewOutputManifest()
 
-	domainOutput := &DomainOutput{
+	output := &DomainOutput{
 		Resources: map[string]ResourceOutput{
-			"bucket1": {
-				Type: "aws_s3_bucket",
+			"s3": {
+				Type: "aws_s3",
 				Outputs: map[string]interface{}{
-					"name": "my-bucket",
-					"arn":  "arn:aws:s3:::my-bucket",
+					"bucket_name": "my-bucket",
+				},
+			},
+		},
+		Files: []string{"bucket.yaml"},
+	}
+
+	manifest.AddDomainOutput("aws", output)
+
+	assert.Len(t, manifest.Domains, 1)
+	assert.Equal(t, output, manifest.Domains["aws"])
+}
+
+func TestOutputManifest_AddDomainOutput_NilDomains(t *testing.T) {
+	manifest := &OutputManifest{Domains: nil}
+
+	output := &DomainOutput{
+		Resources: map[string]ResourceOutput{},
+	}
+
+	manifest.AddDomainOutput("aws", output)
+
+	assert.NotNil(t, manifest.Domains)
+	assert.Len(t, manifest.Domains, 1)
+}
+
+func TestOutputManifest_GetDomainOutput(t *testing.T) {
+	manifest := NewOutputManifest()
+	output := &DomainOutput{
+		Resources: map[string]ResourceOutput{
+			"vpc": {
+				Type: "aws_vpc",
+				Outputs: map[string]interface{}{
+					"vpc_id": "vpc-12345",
 				},
 			},
 		},
 	}
+	manifest.AddDomainOutput("aws", output)
 
-	manifest.AddDomainOutput("aws", domainOutput)
+	t.Run("returns domain output when exists", func(t *testing.T) {
+		result := manifest.GetDomainOutput("aws")
+		assert.Equal(t, output, result)
+	})
 
-	if len(manifest.Domains) != 1 {
-		t.Errorf("Expected 1 domain, got %d", len(manifest.Domains))
-	}
+	t.Run("returns nil for non-existent domain", func(t *testing.T) {
+		result := manifest.GetDomainOutput("nonexistent")
+		assert.Nil(t, result)
+	})
 
-	retrieved := manifest.GetDomainOutput("aws")
-	if retrieved == nil {
-		t.Fatal("GetDomainOutput returned nil")
-	}
-	if len(retrieved.Resources) != 1 {
-		t.Errorf("Expected 1 resource, got %d", len(retrieved.Resources))
-	}
+	t.Run("returns nil when Domains is nil", func(t *testing.T) {
+		emptyManifest := &OutputManifest{Domains: nil}
+		result := emptyManifest.GetDomainOutput("aws")
+		assert.Nil(t, result)
+	})
 }
 
-func TestGetDomainOutput(t *testing.T) {
+func TestOutputManifest_GetResourceOutput(t *testing.T) {
 	manifest := NewOutputManifest()
+	manifest.AddDomainOutput("aws", &DomainOutput{
+		Resources: map[string]ResourceOutput{
+			"s3": {
+				Type: "aws_s3_bucket",
+				Outputs: map[string]interface{}{
+					"bucket_name": "my-bucket",
+					"bucket_arn":  "arn:aws:s3:::my-bucket",
+				},
+			},
+		},
+	})
 
-	// Test getting non-existent domain
-	retrieved := manifest.GetDomainOutput("nonexistent")
-	if retrieved != nil {
-		t.Error("Expected nil for non-existent domain")
-	}
+	t.Run("returns output value when exists", func(t *testing.T) {
+		result := manifest.GetResourceOutput("aws", "s3", "bucket_name")
+		assert.Equal(t, "my-bucket", result)
+	})
 
-	// Add a domain and retrieve it
-	domainOutput := &DomainOutput{
-		Resources: make(map[string]ResourceOutput),
-	}
-	manifest.AddDomainOutput("test", domainOutput)
+	t.Run("returns nil for non-existent domain", func(t *testing.T) {
+		result := manifest.GetResourceOutput("gitlab", "s3", "bucket_name")
+		assert.Nil(t, result)
+	})
 
-	retrieved = manifest.GetDomainOutput("test")
-	if retrieved == nil {
-		t.Error("Expected non-nil for existing domain")
-	}
+	t.Run("returns nil for non-existent resource", func(t *testing.T) {
+		result := manifest.GetResourceOutput("aws", "lambda", "bucket_name")
+		assert.Nil(t, result)
+	})
+
+	t.Run("returns nil for non-existent output key", func(t *testing.T) {
+		result := manifest.GetResourceOutput("aws", "s3", "nonexistent")
+		assert.Nil(t, result)
+	})
 }
 
-func TestSaveToFile(t *testing.T) {
+func TestOutputManifest_SaveAndLoadJSON(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "output-test-*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
 
 	manifest := NewOutputManifest()
 	manifest.AddDomainOutput("aws", &DomainOutput{
 		Resources: map[string]ResourceOutput{
-			"bucket": {
+			"s3": {
 				Type: "aws_s3_bucket",
 				Outputs: map[string]interface{}{
-					"name": "test-bucket",
+					"bucket_name": "test-bucket",
 				},
 			},
 		},
+		Files: []string{"bucket.yaml", "template.yaml"},
 	})
 
-	outputPath := filepath.Join(tmpDir, "outputs.json")
-	err = manifest.SaveToFile(outputPath)
-	if err != nil {
-		t.Fatalf("SaveToFile failed: %v", err)
-	}
+	filePath := filepath.Join(tmpDir, "manifest.json")
 
-	// Verify file exists
-	if _, err := os.Stat(outputPath); os.IsNotExist(err) {
-		t.Error("Output file was not created")
-	}
+	t.Run("saves to JSON file", func(t *testing.T) {
+		err := manifest.SaveToFile(filePath)
+		require.NoError(t, err)
 
-	// Verify content is valid JSON
-	content, err := os.ReadFile(outputPath)
-	if err != nil {
-		t.Fatalf("Failed to read output file: %v", err)
-	}
+		// Verify file exists and is valid JSON
+		data, err := os.ReadFile(filePath)
+		require.NoError(t, err)
 
-	var parsed OutputManifest
-	if err := json.Unmarshal(content, &parsed); err != nil {
-		t.Errorf("Output file is not valid JSON: %v", err)
-	}
+		var parsed map[string]interface{}
+		err = json.Unmarshal(data, &parsed)
+		require.NoError(t, err)
+		assert.Contains(t, parsed, "domains")
+	})
 
-	// Verify content matches
-	if len(parsed.Domains) != 1 {
-		t.Errorf("Expected 1 domain in loaded manifest, got %d", len(parsed.Domains))
-	}
+	t.Run("loads from JSON file", func(t *testing.T) {
+		loaded, err := LoadFromFile(filePath)
+		require.NoError(t, err)
+
+		assert.NotNil(t, loaded)
+		assert.Len(t, loaded.Domains, 1)
+
+		awsOutput := loaded.GetDomainOutput("aws")
+		require.NotNil(t, awsOutput)
+		assert.Equal(t, "test-bucket", awsOutput.Resources["s3"].Outputs["bucket_name"])
+		assert.Equal(t, []string{"bucket.yaml", "template.yaml"}, awsOutput.Files)
+	})
+
+	t.Run("returns error for non-existent file", func(t *testing.T) {
+		_, err := LoadFromFile(filepath.Join(tmpDir, "nonexistent.json"))
+		assert.Error(t, err)
+	})
 }
 
-func TestLoadFromFile(t *testing.T) {
+func TestOutputManifest_SaveAndLoadYAML(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "output-test-*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
 
-	// Create test manifest
-	original := NewOutputManifest()
-	original.AddDomainOutput("aws", &DomainOutput{
+	manifest := NewOutputManifest()
+	manifest.AddDomainOutput("gitlab", &DomainOutput{
 		Resources: map[string]ResourceOutput{
-			"bucket": {
-				Type: "aws_s3_bucket",
+			"pipeline": {
+				Type: "gitlab_pipeline",
 				Outputs: map[string]interface{}{
-					"name": "test-bucket",
-					"arn":  "arn:aws:s3:::test-bucket",
+					"pipeline_id": "456",
 				},
 			},
 		},
+		Files: []string{".gitlab-ci.yml"},
 	})
 
-	// Save it
-	outputPath := filepath.Join(tmpDir, "outputs.json")
-	if err := original.SaveToFile(outputPath); err != nil {
-		t.Fatalf("SaveToFile failed: %v", err)
-	}
+	filePath := filepath.Join(tmpDir, "manifest.yaml")
 
-	// Load it back
-	loaded, err := LoadFromFile(outputPath)
-	if err != nil {
-		t.Fatalf("LoadFromFile failed: %v", err)
-	}
+	t.Run("saves to YAML file", func(t *testing.T) {
+		err := manifest.SaveToYAML(filePath)
+		require.NoError(t, err)
 
-	// Verify content
-	if len(loaded.Domains) != 1 {
-		t.Errorf("Expected 1 domain, got %d", len(loaded.Domains))
-	}
+		// Verify file exists
+		_, err = os.Stat(filePath)
+		require.NoError(t, err)
+	})
 
-	awsDomain := loaded.GetDomainOutput("aws")
-	if awsDomain == nil {
-		t.Fatal("AWS domain not found in loaded manifest")
-	}
+	t.Run("loads from YAML file", func(t *testing.T) {
+		loaded, err := LoadFromYAML(filePath)
+		require.NoError(t, err)
 
-	if len(awsDomain.Resources) != 1 {
-		t.Errorf("Expected 1 resource, got %d", len(awsDomain.Resources))
-	}
+		assert.NotNil(t, loaded)
+		gitlabOutput := loaded.GetDomainOutput("gitlab")
+		require.NotNil(t, gitlabOutput)
+		assert.Equal(t, "456", gitlabOutput.Resources["pipeline"].Outputs["pipeline_id"])
+	})
 
-	bucket, ok := awsDomain.Resources["bucket"]
-	if !ok {
-		t.Fatal("bucket resource not found")
-	}
-
-	if bucket.Type != "aws_s3_bucket" {
-		t.Errorf("Expected type aws_s3_bucket, got %s", bucket.Type)
-	}
-
-	if bucket.Outputs["name"] != "test-bucket" {
-		t.Errorf("Expected name test-bucket, got %v", bucket.Outputs["name"])
-	}
+	t.Run("returns error for non-existent file", func(t *testing.T) {
+		_, err := LoadFromYAML(filepath.Join(tmpDir, "nonexistent.yaml"))
+		assert.Error(t, err)
+	})
 }
 
-func TestLoadFromFile_InvalidJSON(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "output-test-*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+func TestOutputExtractor_ExtractFromDir(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "extractor-test-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
 
-	// Create invalid JSON file
-	invalidPath := filepath.Join(tmpDir, "invalid.json")
-	err = os.WriteFile(invalidPath, []byte("not valid json"), 0644)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// Create test files
+	cfnYAML := `AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  MyBucket:
+    Type: AWS::S3::Bucket
+Outputs:
+  BucketName:
+    Value: !Ref MyBucket
+  BucketArn:
+    Value: !GetAtt MyBucket.Arn
+`
+	err = os.WriteFile(filepath.Join(tmpDir, "bucket.yaml"), []byte(cfnYAML), 0644)
+	require.NoError(t, err)
 
-	// Try to load it
-	_, err = LoadFromFile(invalidPath)
-	if err == nil {
-		t.Error("Expected error when loading invalid JSON")
-	}
+	goFile := `package main
+
+func createBucket() {
+	bucket := NewBucket("my-bucket")
+	bucket.Output("bucket_name", bucket.Ref())
+	bucket.AddOutput("bucket_arn", bucket.Arn())
+}
+`
+	err = os.WriteFile(filepath.Join(tmpDir, "bucket.go"), []byte(goFile), 0644)
+	require.NoError(t, err)
+
+	extractor := NewOutputExtractor()
+
+	t.Run("extracts outputs from YAML files", func(t *testing.T) {
+		output, err := extractor.ExtractFromDir(tmpDir, "aws", []string{"*.yaml"})
+		require.NoError(t, err)
+
+		assert.NotNil(t, output)
+		assert.Contains(t, output.Files, "bucket.yaml")
+
+		// Check that outputs were extracted
+		s3Resource := output.Resources["s3"]
+		assert.NotNil(t, s3Resource.Outputs)
+	})
+
+	t.Run("extracts outputs from Go files", func(t *testing.T) {
+		output, err := extractor.ExtractFromDir(tmpDir, "aws", []string{"*.go"})
+		require.NoError(t, err)
+
+		assert.NotNil(t, output)
+		assert.Contains(t, output.Files, "bucket.go")
+
+		// Check for Go DSL output patterns
+		s3Resource := output.Resources["s3"]
+		assert.NotNil(t, s3Resource.Outputs)
+		assert.Contains(t, s3Resource.Outputs, "bucket_name")
+		assert.Contains(t, s3Resource.Outputs, "bucket_arn")
+	})
+
+	t.Run("extracts from all files when no patterns specified", func(t *testing.T) {
+		output, err := extractor.ExtractFromDir(tmpDir, "aws", nil)
+		require.NoError(t, err)
+
+		assert.NotNil(t, output)
+		assert.GreaterOrEqual(t, len(output.Files), 2)
+	})
 }
 
-func TestLoadFromFile_MissingFile(t *testing.T) {
-	_, err := LoadFromFile("/nonexistent/path/outputs.json")
-	if err == nil {
-		t.Error("Expected error when loading non-existent file")
-	}
+func TestOutputExtractor_ExtractFromJSON(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "extractor-json-test-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	// CloudFormation JSON format
+	cfnJSON := `{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Outputs": {
+    "BucketName": {
+      "Value": {"Ref": "MyBucket"},
+      "Description": "Name of the bucket"
+    },
+    "BucketArn": {
+      "Value": {"Fn::GetAtt": ["MyBucket", "Arn"]}
+    }
+  }
+}`
+	err = os.WriteFile(filepath.Join(tmpDir, "template.json"), []byte(cfnJSON), 0644)
+	require.NoError(t, err)
+
+	extractor := NewOutputExtractor()
+	output, err := extractor.ExtractFromDir(tmpDir, "aws", []string{"*.json"})
+	require.NoError(t, err)
+
+	assert.NotNil(t, output)
+	assert.Contains(t, output.Files, "template.json")
+
+	// Check Outputs section was parsed
+	cfnResource := output.Resources["cloudformation"]
+	assert.NotNil(t, cfnResource.Outputs)
+	assert.Contains(t, cfnResource.Outputs, "BucketName")
+	assert.Contains(t, cfnResource.Outputs, "BucketArn")
 }
 
 func TestCaptureOutputsFromFiles(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "output-test-*")
-	if err != nil {
-		t.Fatal(err)
+	tmpDir, err := os.MkdirTemp("", "capture-test-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	// Create a simple YAML file
+	yamlContent := `Outputs:
+  VpcId:
+    Value: !Ref VPC
+`
+	err = os.WriteFile(filepath.Join(tmpDir, "vpc.yaml"), []byte(yamlContent), 0644)
+	require.NoError(t, err)
+
+	output, err := CaptureOutputsFromFiles(tmpDir, "aws", []string{"*.yaml"})
+	require.NoError(t, err)
+
+	assert.NotNil(t, output)
+	assert.Contains(t, output.Files, "vpc.yaml")
+}
+
+func TestInferResourceName(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"bucket.yaml", "s3"},
+		{"s3_bucket.yaml", "s3"},
+		{"lambda_function.go", "lambda"},
+		{"my_vpc.yaml", "vpc"},
+		{"iam_role.json", "iam"},
+		{"deployment.yaml", "kubernetes"},
+		{"pipeline.yaml", "pipeline"},
+		{"workflow.yaml", "workflow"},
+		{"template.yaml", "cloudformation"},
+		{"custom_resource.yaml", "custom_resource"},
+		{"my_service.yaml", "kubernetes"},
+		{"rds_database.yaml", "rds"},
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
 
-	t.Run("captures JSON files", func(t *testing.T) {
-		// Create a test JSON file
-		testData := map[string]interface{}{
-			"BucketName": "my-test-bucket",
-			"BucketArn":  "arn:aws:s3:::my-test-bucket",
-		}
-		jsonBytes, _ := json.Marshal(testData)
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result := inferResourceName(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
 
-		outputDir := filepath.Join(tmpDir, "output")
-		_ = os.MkdirAll(outputDir, 0755)
-		_ = os.WriteFile(filepath.Join(outputDir, "stack.json"), jsonBytes, 0644)
+func TestMatchesPatterns(t *testing.T) {
+	tests := []struct {
+		path     string
+		patterns []string
+		expected bool
+	}{
+		{"bucket.yaml", []string{"*.yaml"}, true},
+		{"bucket.yaml", []string{"*.json"}, false},
+		{"nested/bucket.yaml", []string{"*.yaml"}, true},
+		{"bucket.yaml", []string{"bucket.*"}, true},
+		{"bucket.yaml", []string{"*.yaml", "*.json"}, true},
+		{"bucket.yaml", []string{}, false},
+		{"template.json", []string{"template.*"}, true},
+	}
 
-		// Capture outputs
-		domainOutput, err := CaptureOutputsFromFiles(tmpDir, "aws", []string{"output/*.json"})
-		if err != nil {
-			t.Fatalf("CaptureOutputsFromFiles failed: %v", err)
-		}
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			result := matchesPatterns(tt.path, tt.patterns)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
 
-		// Verify captured output
-		if len(domainOutput.Resources) != 1 {
-			t.Errorf("Expected 1 resource, got %d", len(domainOutput.Resources))
-		}
+func TestNewOutputExtractor(t *testing.T) {
+	extractor := NewOutputExtractor()
 
-		// Check that the resource was captured
-		found := false
-		for name, resource := range domainOutput.Resources {
-			if resource.Type == "aws_resource" {
-				found = true
-				if resource.Outputs["BucketName"] != "my-test-bucket" {
-					t.Errorf("Expected BucketName my-test-bucket, got %v", resource.Outputs["BucketName"])
-				}
-			}
-			t.Logf("Captured resource: %s with type %s", name, resource.Type)
-		}
-		if !found {
-			t.Error("Expected to find aws_resource type")
-		}
+	assert.NotNil(t, extractor)
+	assert.NotNil(t, extractor.Patterns)
+	assert.Contains(t, extractor.Patterns, ".yaml")
+	assert.Contains(t, extractor.Patterns, ".yml")
+	assert.Contains(t, extractor.Patterns, ".json")
+	assert.Contains(t, extractor.Patterns, ".go")
+}
+
+func TestDefaultOutputPatterns(t *testing.T) {
+	patterns := defaultOutputPatterns()
+
+	t.Run("YAML patterns exist", func(t *testing.T) {
+		yamlPatterns := patterns[".yaml"]
+		assert.NotEmpty(t, yamlPatterns)
 	})
 
-	t.Run("handles non-JSON files gracefully", func(t *testing.T) {
-		// Create a non-JSON file
-		textDir := filepath.Join(tmpDir, "text")
-		_ = os.MkdirAll(textDir, 0755)
-		_ = os.WriteFile(filepath.Join(textDir, "readme.txt"), []byte("not json"), 0644)
-
-		// This should not error, just not capture the file
-		domainOutput, err := CaptureOutputsFromFiles(tmpDir, "test", []string{"text/*.txt"})
-		if err != nil {
-			t.Fatalf("CaptureOutputsFromFiles should not error on non-JSON: %v", err)
-		}
-
-		// Should have empty resources since the file wasn't JSON
-		if len(domainOutput.Resources) != 0 {
-			t.Errorf("Expected 0 resources for non-JSON file, got %d", len(domainOutput.Resources))
-		}
+	t.Run("JSON patterns exist", func(t *testing.T) {
+		jsonPatterns := patterns[".json"]
+		assert.NotEmpty(t, jsonPatterns)
 	})
 
-	t.Run("handles no matching files", func(t *testing.T) {
-		domainOutput, err := CaptureOutputsFromFiles(tmpDir, "test", []string{"nonexistent/*.json"})
-		if err != nil {
-			t.Fatalf("CaptureOutputsFromFiles should not error on no matches: %v", err)
-		}
+	t.Run("Go patterns exist", func(t *testing.T) {
+		goPatterns := patterns[".go"]
+		assert.NotEmpty(t, goPatterns)
 
-		if len(domainOutput.Resources) != 0 {
-			t.Errorf("Expected 0 resources when no files match, got %d", len(domainOutput.Resources))
-		}
+		// Test Go pattern matches Output() calls
+		goPattern := goPatterns[0]
+		matches := goPattern.Regex.FindStringSubmatch(`Output("bucket_name", val)`)
+		assert.NotEmpty(t, matches)
+		assert.Equal(t, "bucket_name", matches[1])
 	})
 }
 
-func TestDomainOutputJSON(t *testing.T) {
-	// Test that DomainOutput can be marshaled and unmarshaled
-	original := &DomainOutput{
+func TestOutputManifest_SaveCreatesDirectory(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "save-dir-test-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	manifest := NewOutputManifest()
+	manifest.AddDomainOutput("aws", &DomainOutput{
+		Resources: map[string]ResourceOutput{},
+	})
+
+	// Save to nested directory that doesn't exist
+	nestedPath := filepath.Join(tmpDir, "nested", "deep", "manifest.json")
+	err = manifest.SaveToFile(nestedPath)
+	require.NoError(t, err)
+
+	// Verify file was created
+	_, err = os.Stat(nestedPath)
+	require.NoError(t, err)
+}
+
+func TestOutputExtractor_HandlesMalformedFiles(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "malformed-test-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	// Create malformed JSON
+	err = os.WriteFile(filepath.Join(tmpDir, "bad.json"), []byte("not valid json"), 0644)
+	require.NoError(t, err)
+
+	// Create malformed YAML
+	err = os.WriteFile(filepath.Join(tmpDir, "bad.yaml"), []byte(":::invalid:yaml:::"), 0644)
+	require.NoError(t, err)
+
+	extractor := NewOutputExtractor()
+	output, err := extractor.ExtractFromDir(tmpDir, "test", nil)
+
+	// Should not error - just skip malformed files
+	require.NoError(t, err)
+	assert.NotNil(t, output)
+	// Files should still be tracked even if parsing failed
+	assert.Contains(t, output.Files, "bad.json")
+	assert.Contains(t, output.Files, "bad.yaml")
+}
+
+func TestDomainOutput_EmptyResources(t *testing.T) {
+	output := &DomainOutput{
+		Resources: map[string]ResourceOutput{},
+		Files:     []string{},
+	}
+
+	assert.Empty(t, output.Resources)
+	assert.Empty(t, output.Files)
+}
+
+func TestResourceOutput_NilOutputs(t *testing.T) {
+	manifest := NewOutputManifest()
+	manifest.AddDomainOutput("aws", &DomainOutput{
 		Resources: map[string]ResourceOutput{
-			"resource1": {
-				Type: "test_type",
-				Outputs: map[string]interface{}{
-					"key1": "value1",
-					"key2": 42,
-				},
+			"s3": {
+				Type:    "aws_s3",
+				Outputs: nil,
 			},
 		},
-	}
+	})
 
-	// Marshal
-	data, err := json.Marshal(original)
-	if err != nil {
-		t.Fatalf("Failed to marshal DomainOutput: %v", err)
-	}
-
-	// Unmarshal
-	var parsed DomainOutput
-	if err := json.Unmarshal(data, &parsed); err != nil {
-		t.Fatalf("Failed to unmarshal DomainOutput: %v", err)
-	}
-
-	// Verify
-	if len(parsed.Resources) != 1 {
-		t.Errorf("Expected 1 resource, got %d", len(parsed.Resources))
-	}
-
-	resource, ok := parsed.Resources["resource1"]
-	if !ok {
-		t.Fatal("resource1 not found after unmarshal")
-	}
-
-	if resource.Type != "test_type" {
-		t.Errorf("Expected type test_type, got %s", resource.Type)
-	}
+	result := manifest.GetResourceOutput("aws", "s3", "any_key")
+	assert.Nil(t, result)
 }
