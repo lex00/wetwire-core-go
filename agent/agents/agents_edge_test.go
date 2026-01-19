@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/lex00/wetwire-core-go/providers"
+	claudeprovider "github.com/lex00/wetwire-core-go/providers/claude"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -647,6 +648,69 @@ func TestNewRunnerAgent_Configuration(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestNewRunnerAgent_DefaultsToClaudeProvider verifies that when no API key is provided
+// and Claude CLI is available, the Claude provider is used (not Anthropic).
+// This is a critical test for the "no API key required" user experience.
+func TestNewRunnerAgent_DefaultsToClaudeProvider(t *testing.T) {
+	// Skip if Claude CLI is not available
+	if !claudeprovider.Available() {
+		t.Skip("Claude CLI not available, skipping Claude provider test")
+	}
+
+	// Clear API key to ensure we're not falling back to Anthropic
+	t.Setenv("ANTHROPIC_API_KEY", "")
+
+	testDomain := DomainConfig{
+		Name:         "test",
+		CLICommand:   "test-cli",
+		SystemPrompt: "Test prompt",
+		OutputFormat: "JSON",
+	}
+
+	agent, err := NewRunnerAgent(RunnerConfig{
+		Domain: testDomain,
+		// No APIKey, no Provider - should default to Claude
+	})
+
+	require.NoError(t, err, "NewRunnerAgent should succeed without API key when Claude CLI is available")
+	require.NotNil(t, agent)
+
+	// Verify the provider is Claude, not Anthropic
+	assert.Equal(t, "claude", agent.provider.Name(),
+		"Provider should be 'claude' when no API key is provided and Claude CLI is available")
+}
+
+// TestNewRunnerAgent_FallsBackToAnthropicWhenClaudeUnavailable verifies fallback behavior.
+// This test simulates Claude CLI being unavailable by using a custom PATH.
+func TestNewRunnerAgent_FallsBackToAnthropicWhenClaudeUnavailable(t *testing.T) {
+	// Save original PATH and set to empty to simulate Claude CLI not being available
+	originalPath := os.Getenv("PATH")
+	t.Setenv("PATH", "/nonexistent")
+	defer t.Setenv("PATH", originalPath)
+
+	// Also clear API key
+	t.Setenv("ANTHROPIC_API_KEY", "")
+
+	testDomain := DomainConfig{
+		Name:         "test",
+		CLICommand:   "test-cli",
+		SystemPrompt: "Test prompt",
+		OutputFormat: "JSON",
+	}
+
+	agent, err := NewRunnerAgent(RunnerConfig{
+		Domain: testDomain,
+	})
+
+	// Should fail because:
+	// 1. Claude CLI not available (PATH is empty)
+	// 2. No ANTHROPIC_API_KEY set
+	require.Error(t, err, "Should fail when Claude CLI unavailable and no API key")
+	assert.Nil(t, agent)
+	assert.Contains(t, err.Error(), "Claude CLI not found",
+		"Error message should mention Claude CLI not found")
 }
 
 // TestExecuteTool_UnknownTool tests handling of unknown tool names
