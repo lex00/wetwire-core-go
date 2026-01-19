@@ -11,7 +11,7 @@ wetwire-core-go/
 ├── providers/         # AI provider abstraction (Anthropic, Claude, Kiro)
 ├── agent/
 │   ├── personas/      # 5 built-in developer personas
-│   ├── scoring/       # 5-dimension evaluation rubric
+│   ├── scoring/       # 4-dimension evaluation rubric
 │   ├── orchestrator/  # Developer/Runner coordination
 │   ├── results/       # Session tracking, RESULTS.md generation
 │   └── agents/        # Unified Agent, legacy RunnerAgent

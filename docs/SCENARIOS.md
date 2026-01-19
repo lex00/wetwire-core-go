@@ -131,7 +131,7 @@ The conversation flow:
 4. **Developer** answers
 5. **Runner** continues until complete
 
-This back-and-forth is real - the agent genuinely asks questions when it needs clarification, and the developer (human or AI persona) responds.
+The conversation supports clarifying questions - when requirements are ambiguous, the agent may generate questions, and the developer (human or simulated persona) responds.
 
 ## Recording Conversations
 

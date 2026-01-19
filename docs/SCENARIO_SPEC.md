@@ -200,21 +200,22 @@ results/
 
 ## Scoring
 
-Scenarios are scored on 5 dimensions (0-3 each, max 15):
+Scenarios are scored on 4 dimensions (0-3 each, max 12):
 
 | Dimension | Description |
 |-----------|-------------|
 | Completeness | Were all expected files created? |
 | Lint Quality | Does the output pass linting? |
-| Code Quality | Are best practices followed? |
 | Output Validity | Is the output valid/deployable? |
 | Question Efficiency | Appropriate clarification? |
 
 Thresholds:
-- 13-15: Excellent
-- 10-12: Success
-- 6-9: Partial
-- 0-5: Failure
+- 11-12: Excellent
+- 8-10: Success
+- 5-7: Partial
+- 0-4: Failure
+
+**Note:** LLM outputs are non-deterministic. Scores may vary between runs even with identical inputs. For reliable baselines, run scenarios multiple times and track score distributions rather than single values.
 
 ## Validation
 
@@ -237,5 +238,5 @@ func TestScenarioStructure(t *testing.T) {
 - [ ] Created all 5 persona prompts in `prompts/`
 - [ ] Created `.gitignore` for results/ and *.svg
 - [ ] All prompts request the same outcome (different styles)
-- [ ] Ran with `--all` to verify all personas work
-- [ ] Scores are consistent across personas (±2 points)
+- [ ] Ran with `--all` to verify all personas produce valid output
+- [ ] Ran multiple times to establish score variance per persona
