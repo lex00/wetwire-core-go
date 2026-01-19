@@ -2,6 +2,14 @@
 
 Scenarios define multi-domain infrastructure generation workflows with cross-domain validation.
 
+## Why Scenarios?
+
+Scenarios validate wetwire's core hypothesis:
+
+> **Typed input + smaller model ≈ Semantic input + larger model**
+
+By running the same prompts with different model/constraint combinations, scenarios measure whether wetwire's type system and lint rules can substitute for expensive model capability. The typed overlay (schemas, lint feedback, domain constraints) acts as a force multiplier — enabling cheaper models to produce comparable output quality.
+
 ## Overview
 
 A scenario orchestrates multiple wetwire domain packages (e.g., AWS + GitLab) to generate related infrastructure that works together. The scenario system handles:
@@ -9,6 +17,7 @@ A scenario orchestrates multiple wetwire domain packages (e.g., AWS + GitLab) to
 - **Domain ordering** - Respects dependencies between domains
 - **Cross-domain validation** - Ensures outputs from one domain are correctly referenced by another
 - **Conversation capture** - Records the full user/agent interaction for replay and analysis
+- **Model comparison** - Run same scenario with different models to measure constraint effectiveness
 
 ## Scenario Structure
 

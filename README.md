@@ -10,13 +10,23 @@ Shared agent infrastructure for wetwire domain packages.
 
 ## Overview
 
-wetwire-core-go provides the AI agent framework used by wetwire domain packages (like wetwire-aws-go). It includes:
+wetwire-core-go provides the AI agent framework used by wetwire domain packages (like wetwire-aws-go).
+
+### Core Hypothesis
+
+Wetwire validates that **typed constraints reduce required model capability**:
+
+> Typed input + smaller model ≈ Semantic input + larger model
+
+The type system and lint rules act as a force multiplier — cheaper models can produce quality output when guided by schema-generated types and iterative lint feedback. Scenarios test this by comparing output quality across model/constraint combinations.
+
+### Package Summary
 
 - **agents** - Unified Agent architecture with MCP tool integration
 - **mcp** - MCP server for Claude Code integration with standard tool definitions
 - **providers** - AI provider abstraction (Anthropic API, Claude Code, Kiro)
 - **personas** - Developer persona definitions (Beginner, Intermediate, Expert, Terse, Verbose)
-- **scoring** - 5-dimension evaluation rubric (0-15 scale)
+- **scoring** - 4-dimension evaluation rubric (0-12 scale)
 - **results** - Session tracking and RESULTS.md generation
 - **orchestrator** - Developer/Runner agent coordination
 - **scenario** - Multi-domain scenario definitions with cross-domain validation
