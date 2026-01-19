@@ -14,7 +14,7 @@ wetwire-core-go/
 │   ├── scoring/       # 4-dimension evaluation rubric
 │   ├── orchestrator/  # Developer/Runner coordination
 │   ├── results/       # Session tracking, RESULTS.md generation
-│   └── agents/        # Unified Agent, legacy RunnerAgent
+│   └── agents/        # Unified Agent, deprecated RunnerAgent
 ├── scenario/          # Multi-domain scenario definitions
 └── cmd/               # CLI command framework
 ```

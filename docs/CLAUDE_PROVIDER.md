@@ -8,8 +8,8 @@ The Claude provider (`providers/claude`) implements the `providers.Provider` int
 
 | Provider | Backend | Use Case |
 |----------|---------|----------|
-| `kiro` | `kiro-cli` (Amazon Q Developer) | Legacy, requires kiro-cli |
 | `claude` | `claude` CLI (Claude Code) | **Recommended**, uses Claude Code directly |
+| `kiro` | `kiro-cli` (Amazon Q Developer) | Enterprise environments with approved kiro-cli |
 
 The Claude provider uses the `claude` CLI that comes with Claude Code, making it the preferred choice for local development and testing.
 

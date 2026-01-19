@@ -132,7 +132,7 @@ resp, _ := provider.CreateMessage(ctx, req)
 | [unified_agent](examples/unified_agent/) | Unified Agent with MCP tools (recommended pattern) |
 | [mcp_server](examples/mcp_server/) | MCP server for Claude Code integration |
 | [claude_provider](examples/claude_provider/) | Using Claude Code as AI backend (no API key) |
-| [kiro_provider](examples/kiro_provider/) | Using Kiro provider (legacy) |
+| [kiro_provider](examples/kiro_provider/) | Using Kiro provider (enterprise) |
 
 ### Running Scenarios
 
@@ -194,7 +194,7 @@ provider, _ := claude.New(claude.Config{
 // Anthropic (direct API - recommended for production)
 provider, _ := anthropic.New(anthropic.Config{APIKey: "..."})
 
-// Kiro (legacy - uses kiro-cli)
+// Kiro (enterprise - uses kiro-cli)
 provider, _ := kiro.New(kiro.Config{AgentName: "...", MCPCommand: "..."})
 
 // All implement providers.Provider interface
@@ -298,7 +298,7 @@ func main() {
 
 - [mcp/README.md](mcp/README.md) - MCP server and standard tools
 - [docs/CLAUDE_PROVIDER.md](docs/CLAUDE_PROVIDER.md) - Claude Code provider (no API key)
-- [docs/KIRO_PROVIDER.md](docs/KIRO_PROVIDER.md) - Kiro provider (legacy)
+- [docs/KIRO_PROVIDER.md](docs/KIRO_PROVIDER.md) - Kiro provider (enterprise)
 - [docs/SCENARIOS.md](docs/SCENARIOS.md) - Multi-domain scenario definitions
 - [docs/RECORDING.md](docs/RECORDING.md) - SVG recording of conversations
 - [docs/FAQ.md](docs/FAQ.md) - Frequently asked questions

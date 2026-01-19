@@ -78,13 +78,12 @@ Yes. Create a `Persona` struct with name, description, system prompt, and traits
 
 ### How is scoring calculated?
 
-5 dimensions, 0-3 points each (15 total):
+4 dimensions, 0-3 points each (12 total):
 
 | Dimension | Measures |
 |-----------|----------|
 | Completeness | Were all resources generated? |
 | Lint Quality | How many lint cycles needed? |
-| Code Quality | Is the code idiomatic? |
 | Output Validity | Does output validate? |
 | Question Efficiency | Appropriate question count? |
 
@@ -92,12 +91,14 @@ Yes. Create a `Persona` struct with name, description, system prompt, and traits
 
 | Score | Grade |
 |-------|-------|
-| 0-5 | Failure |
-| 6-9 | Partial |
-| 10-12 | Success |
-| 13-15 | Excellent |
+| 0-4 | Failure |
+| 5-7 | Partial |
+| 8-10 | Success |
+| 11-12 | Excellent |
 
-Minimum passing score is 6.
+Minimum passing score is 5.
+
+**Note:** LLM outputs are non-deterministic. Scores may vary between runs.
 
 ---
 
