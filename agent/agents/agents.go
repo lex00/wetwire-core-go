@@ -18,6 +18,7 @@ import (
 	"github.com/lex00/wetwire-core-go/agent/results"
 	"github.com/lex00/wetwire-core-go/providers"
 	anthropicprovider "github.com/lex00/wetwire-core-go/providers/anthropic"
+	claudeprovider "github.com/lex00/wetwire-core-go/providers/claude"
 )
 
 // DomainConfig provides domain-specific configuration for the RunnerAgent.
@@ -87,11 +88,11 @@ type RunnerConfig struct {
 	// Domain provides domain-specific configuration (required).
 	Domain DomainConfig
 
-	// Provider is the AI provider to use. If nil, defaults to Anthropic.
+	// Provider is the AI provider to use. If nil, defaults to Claude CLI
+	// (no API key required). Falls back to Anthropic if Claude CLI is not available.
 	Provider providers.Provider
 
-	// APIKey for Anthropic (defaults to ANTHROPIC_API_KEY env var)
-	// Only used when Provider is nil.
+	// APIKey for Anthropic (only used when falling back to Anthropic provider)
 	APIKey string
 
 	// Model to use (defaults to claude-sonnet-4-20250514)
@@ -118,14 +119,27 @@ type RunnerConfig struct {
 func NewRunnerAgent(config RunnerConfig) (*RunnerAgent, error) {
 	provider := config.Provider
 
-	// Default to Anthropic provider if none specified
+	// Default to Claude CLI provider if available (no API key required).
+	// Falls back to Anthropic provider if Claude CLI is not installed.
 	if provider == nil {
-		var err error
-		provider, err = anthropicprovider.New(anthropicprovider.Config{
-			APIKey: config.APIKey,
-		})
-		if err != nil {
-			return nil, err
+		if claudeprovider.Available() {
+			var err error
+			provider, err = claudeprovider.New(claudeprovider.Config{
+				WorkDir:        config.WorkDir,
+				PermissionMode: "acceptEdits",
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to create Claude provider: %w", err)
+			}
+		} else {
+			// Fall back to Anthropic if Claude CLI not available
+			var err error
+			provider, err = anthropicprovider.New(anthropicprovider.Config{
+				APIKey: config.APIKey,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("Claude CLI not found and %w\n\nInstall Claude Code: https://claude.ai/download", err)
+			}
 		}
 	}
 

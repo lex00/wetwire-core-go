@@ -593,13 +593,13 @@ func TestNewRunnerAgent_Configuration(t *testing.T) {
 			wantError: false,
 		},
 		{
-			name: "no_api_key",
+			name: "no_api_key_with_claude_available",
 			config: RunnerConfig{
 				Domain: testDomain,
 				APIKey: "",
 			},
 			setEnv:    false,
-			wantError: true,
+			wantError: false, // Claude CLI is available, so no API key needed
 		},
 		{
 			name: "defaults_applied",
