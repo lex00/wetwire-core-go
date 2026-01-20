@@ -36,6 +36,10 @@ type PromptConfig struct {
 
 	// Variants maps variant names to prompt file paths
 	Variants map[string]string `yaml:"variants,omitempty"`
+
+	// Personas lists which personas to run (defaults to all if not specified)
+	// Use this to limit scenarios to specific personas (e.g., ["beginner", "intermediate", "expert"])
+	Personas []string `yaml:"personas,omitempty"`
 }
 
 // DomainSpec defines a domain within a scenario.

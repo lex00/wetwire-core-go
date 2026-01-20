@@ -77,7 +77,12 @@ func Run(ctx context.Context, cfg Config) ([]Result, error) {
 
 	personas := cfg.Personas
 	if len(personas) == 0 {
-		personas = DefaultPersonas
+		// Check if scenario config specifies personas
+		if scenarioConfig.Prompts != nil && len(scenarioConfig.Prompts.Personas) > 0 {
+			personas = scenarioConfig.Prompts.Personas
+		} else {
+			personas = DefaultPersonas
+		}
 	}
 	if cfg.SinglePersona != "" {
 		personas = []string{cfg.SinglePersona}
