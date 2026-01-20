@@ -39,6 +39,7 @@ func main() {
 	runAll := false
 	generateRecordings := false
 	verbose := false
+	validate := false
 
 	args := os.Args[1:]
 	for i := 0; i < len(args); i++ {
@@ -49,6 +50,8 @@ func main() {
 			generateRecordings = true
 		} else if arg == "--verbose" || arg == "-v" {
 			verbose = true
+		} else if arg == "--validate" {
+			validate = true
 		} else if arg == "--help" || arg == "-h" {
 			printUsage()
 			return
@@ -78,6 +81,7 @@ func main() {
 		OutputDir:          outputDir,
 		GenerateRecordings: generateRecordings,
 		Verbose:            verbose,
+		Validate:           validate,
 	}
 
 	if runAll {
@@ -125,6 +129,7 @@ Flags:
   --all       Run all personas (beginner, intermediate, expert, terse, verbose)
   --verbose   Show streaming output from Claude (recommended)
   --record    Generate SVG recordings (requires termsvg)
+  --validate  Run validation after generation
   --help      Show this help
 
 Examples:
@@ -132,7 +137,7 @@ Examples:
   run_scenario ./examples/aws_gitlab beginner --verbose
   run_scenario ./examples/aws_gitlab expert ./results
   run_scenario ./examples/aws_gitlab --all --verbose ./results
-  run_scenario ./examples/aws_gitlab --all --record ./results`)
+  run_scenario ./examples/aws_gitlab --all --validate ./results`)
 }
 
 func printSummary(results []runner.Result) {

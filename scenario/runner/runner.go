@@ -25,6 +25,7 @@ import (
 	"github.com/lex00/wetwire-core-go/providers"
 	"github.com/lex00/wetwire-core-go/providers/claude"
 	scenariopkg "github.com/lex00/wetwire-core-go/scenario"
+	"github.com/lex00/wetwire-core-go/scenario/validator"
 )
 
 // DefaultPersonas is the standard set of personas for scenario testing.
@@ -49,17 +50,21 @@ type Config struct {
 
 	// Verbose enables detailed output
 	Verbose bool
+
+	// Validate enables validation against scenario rules and expected files
+	Validate bool
 }
 
 // Result holds the result of a single persona scenario run.
 type Result struct {
-	Persona   string
-	Success   bool
-	Duration  time.Duration
-	Response  string
-	Files     map[string]string // filename -> content
-	OutputDir string
-	Score     *scoring.Score
+	Persona          string
+	Success          bool
+	Duration         time.Duration
+	Response         string
+	Files            map[string]string // filename -> content
+	OutputDir        string
+	Score            *scoring.Score
+	ValidationReport *validator.ValidationReport
 }
 
 // Run executes a scenario with all configured personas.
@@ -103,7 +108,7 @@ func Run(ctx context.Context, cfg Config) ([]Result, error) {
 
 	if len(personas) == 1 {
 		// Single persona: run directly with streaming
-		result := runPersona(ctx, cfg, personas[0], model, cfg.Verbose)
+		result := runPersona(ctx, cfg, personas[0], model, scenarioConfig, cfg.Verbose)
 		results = []Result{result}
 	} else {
 		// Multiple personas: run in parallel without streaming (would be interleaved)
@@ -121,7 +126,7 @@ func Run(ctx context.Context, cfg Config) ([]Result, error) {
 				fmt.Printf("  [%s] Starting...\n", p)
 				mu.Unlock()
 
-				result := runPersona(ctx, cfg, p, model, false) // no streaming for parallel
+				result := runPersona(ctx, cfg, p, model, scenarioConfig, false) // no streaming for parallel
 
 				mu.Lock()
 				results[idx] = result
@@ -144,7 +149,7 @@ func Run(ctx context.Context, cfg Config) ([]Result, error) {
 	return results, nil
 }
 
-func runPersona(ctx context.Context, cfg Config, personaName, model string, verbose bool) Result {
+func runPersona(ctx context.Context, cfg Config, personaName, model string, scenarioConfig *scenariopkg.ScenarioConfig, verbose bool) Result {
 	result := Result{
 		Persona: personaName,
 		Files:   make(map[string]string),
@@ -237,6 +242,20 @@ Use the Write tool to create files. Use mkdir via Bash if directories are needed
 
 	// Calculate score
 	result.Score = calculateScore(result, personaName, cfg.ScenarioPath)
+
+	// Run validation if enabled
+	if cfg.Validate && scenarioConfig != nil {
+		absScenarioPath, _ := filepath.Abs(cfg.ScenarioPath)
+		v := validator.New(scenarioConfig, absScenarioPath, absPersonaDir)
+		report, err := v.Validate()
+		if err == nil {
+			result.ValidationReport = report
+			// Update score based on validation
+			if report.Score > 0 {
+				result.Score = updateScoreFromValidation(result.Score, report)
+			}
+		}
+	}
 
 	// Write outputs
 	saveConversation(result, userPrompt, filepath.Join(absPersonaDir, "conversation.txt"))
@@ -363,6 +382,62 @@ func calculateScore(result Result, persona, scenarioPath string) *scoring.Score 
 	return score
 }
 
+// updateScoreFromValidation updates the score based on validation results.
+func updateScoreFromValidation(score *scoring.Score, report *validator.ValidationReport) *scoring.Score {
+	// Completeness: Based on resource count validation
+	allCountsPassed := true
+	for _, result := range report.ResourceCounts {
+		if !result.Passed {
+			allCountsPassed = false
+			break
+		}
+	}
+	if allCountsPassed && len(report.ResourceCounts) > 0 {
+		score.Completeness.Rating = scoring.RatingExcellent
+		score.Completeness.Notes = "All resource counts met"
+	} else if !allCountsPassed {
+		score.Completeness.Rating = scoring.RatingNone
+		score.Completeness.Notes = "Resource count validation failed"
+	}
+
+	// Output Validity: Based on cross-ref validation
+	allRefsPassed := true
+	for _, result := range report.CrossDomainRefs {
+		if !result.Passed {
+			allRefsPassed = false
+			break
+		}
+	}
+	if allRefsPassed && len(report.CrossDomainRefs) > 0 {
+		score.OutputValidity.Rating = scoring.RatingExcellent
+		score.OutputValidity.Notes = "All cross-domain refs found"
+	} else if !allRefsPassed {
+		score.OutputValidity.Rating = scoring.RatingNone
+		score.OutputValidity.Notes = "Cross-domain ref validation failed"
+	}
+
+	// Question Efficiency: Based on expected file comparison
+	missingCount := 0
+	for _, result := range report.FileComparisons {
+		if result.Missing {
+			missingCount++
+		}
+	}
+	if missingCount == 0 && len(report.FileComparisons) > 0 {
+		score.QuestionEfficiency.Rating = scoring.RatingExcellent
+		score.QuestionEfficiency.Notes = "All expected files found"
+	} else if missingCount > 0 {
+		if missingCount >= 3 {
+			score.QuestionEfficiency.Rating = scoring.RatingNone
+		} else {
+			score.QuestionEfficiency.Rating = scoring.Rating(int(scoring.RatingExcellent) - missingCount)
+		}
+		score.QuestionEfficiency.Notes = fmt.Sprintf("%d expected files missing", missingCount)
+	}
+
+	return score
+}
+
 func saveConversation(result Result, userPrompt, outputPath string) {
 	var buf bytes.Buffer
 
@@ -417,6 +492,51 @@ func writePersonaResults(dir string, result Result) {
 		buf.WriteString(fmt.Sprintf("- [%s](%s)\n", file, file))
 	}
 	buf.WriteString("\n")
+
+	// Include validation report if available
+	if result.ValidationReport != nil {
+		buf.WriteString("## Validation\n\n")
+		status := "✅ PASSED"
+		if !result.ValidationReport.Passed {
+			status = "❌ FAILED"
+		}
+		buf.WriteString(fmt.Sprintf("**Status:** %s\n\n", status))
+
+		// Resource counts
+		if len(result.ValidationReport.ResourceCounts) > 0 {
+			buf.WriteString("### Resource Counts\n\n")
+			buf.WriteString("| Domain | Type | Found | Constraint | Status |\n")
+			buf.WriteString("|--------|------|-------|------------|--------|\n")
+			for domain, rc := range result.ValidationReport.ResourceCounts {
+				constraint := fmt.Sprintf("min: %d", rc.Min)
+				if rc.Max > 0 {
+					constraint += fmt.Sprintf(", max: %d", rc.Max)
+				}
+				status := "✅"
+				if !rc.Passed {
+					status = "❌"
+				}
+				buf.WriteString(fmt.Sprintf("| %s | %s | %d | %s | %s |\n",
+					domain, rc.ResourceType, rc.Found, constraint, status))
+			}
+			buf.WriteString("\n")
+		}
+
+		// Cross-domain refs
+		if len(result.ValidationReport.CrossDomainRefs) > 0 {
+			buf.WriteString("### Cross-Domain References\n\n")
+			for _, ref := range result.ValidationReport.CrossDomainRefs {
+				buf.WriteString(fmt.Sprintf("**%s → %s:**\n", ref.From, ref.To))
+				for _, found := range ref.FoundRefs {
+					buf.WriteString(fmt.Sprintf("- ✅ `%s`\n", found))
+				}
+				for _, missing := range ref.MissingRefs {
+					buf.WriteString(fmt.Sprintf("- ❌ `%s` (missing)\n", missing))
+				}
+				buf.WriteString("\n")
+			}
+		}
+	}
 
 	buf.WriteString("## Conversation\n\n")
 	buf.WriteString("See [conversation.txt](conversation.txt) for the full prompt and response.\n")
