@@ -97,11 +97,17 @@ func GenerateMCPConfig(config Config) MCPConfig {
 		serverName = config.MCPCommand
 	}
 
+	// Ensure Args is never nil (Kiro expects array, not null)
+	args := config.MCPArgs
+	if args == nil {
+		args = []string{}
+	}
+
 	return MCPConfig{
 		MCPServers: map[string]MCPServerConfig{
 			serverName: {
 				Command: config.MCPCommand,
-				Args:    config.MCPArgs,
+				Args:    args,
 			},
 		},
 	}
@@ -121,13 +127,19 @@ func GenerateAgentConfig(config Config) AgentConfig {
 		serverName = config.MCPCommand
 	}
 
+	// Ensure Args is never nil (Kiro expects array, not null)
+	args := config.MCPArgs
+	if args == nil {
+		args = []string{}
+	}
+
 	return AgentConfig{
 		Name:   config.AgentName,
 		Prompt: config.AgentPrompt,
 		MCPServers: map[string]MCPServerConfig{
 			serverName: {
 				Command: config.MCPCommand,
-				Args:    config.MCPArgs,
+				Args:    args,
 				Cwd:     workDir,
 			},
 		},
