@@ -54,8 +54,8 @@ Domain packages (like wetwire-aws-go) use wetwire-core-go for `design` and `test
 | **Beginner** | Uncertain, asks many questions |
 | **Intermediate** | Some knowledge, may miss details |
 | **Expert** | Precise requirements, minimal hand-holding |
-| **Terse** | Minimal information, expects inference |
-| **Verbose** | Over-explains, buries requirements |
+
+Custom personas can be registered for domain-specific testing scenarios.
 
 ### How do I use personas?
 
@@ -70,7 +70,16 @@ if err != nil {
 
 ### Can I create custom personas?
 
-Yes. Create a `Persona` struct with name, description, system prompt, and traits.
+Yes. Use `personas.Register()` to add custom personas:
+
+```go
+personas.Register(personas.Persona{
+    Name:        "security-auditor",
+    Description: "Security-focused reviewer",
+    SystemPrompt: "You are a security auditor...",
+    Traits:      []string{"security-focused", "thorough"},
+})
+```
 
 ---
 

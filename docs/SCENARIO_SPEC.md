@@ -13,9 +13,7 @@ examples/<scenario_name>/
 ├── prompts/               # Required: Persona-specific prompts
 │   ├── beginner.md
 │   ├── intermediate.md
-│   ├── expert.md
-│   ├── terse.md
-│   └── verbose.md
+│   └── expert.md
 ├── expected/              # Optional: Golden files for scoring comparison
 │   └── <expected_outputs>
 ├── results/               # Generated: Scenario run outputs (gitignored)
@@ -38,8 +36,6 @@ prompts:
     beginner: prompts/beginner.md
     intermediate: prompts/intermediate.md
     expert: prompts/expert.md
-    terse: prompts/terse.md
-    verbose: prompts/verbose.md
 
 domains:
   - name: aws                 # Domain identifier
@@ -98,8 +94,8 @@ request the **same outcome** but with different levels of detail and expertise.
 | `beginner` | New to the domain, needs guidance | Asks questions, requests explanations |
 | `intermediate` | Knows basics, wants structure | Clear requirements, some context |
 | `expert` | Deep knowledge, concise | Brief, technical, assumes knowledge |
-| `terse` | Minimal words | Bullet points, abbreviations |
-| `verbose` | Over-explains everything | Lots of context, detailed requirements |
+
+Custom personas can be registered for domain-specific testing using `personas.Register()`.
 
 #### beginner.md Example
 
@@ -119,14 +115,6 @@ Please explain what each part does.
 
 - How does X work?
 - What's the difference between Y and Z?
-```
-
-#### terse.md Example
-
-```markdown
-[Output type]: [key features], [constraints].
-
-Output: [expected files].
 ```
 
 ### .gitignore
@@ -193,9 +181,7 @@ results/
 │   ├── <generated_files>   # Files created by agent
 │   └── *_scenario.svg      # Recording (if --record)
 ├── intermediate/
-├── expert/
-├── terse/
-└── verbose/
+└── expert/
 ```
 
 ## Scoring
@@ -235,7 +221,7 @@ func TestScenarioStructure(t *testing.T) {
 - [ ] Created `scenario.yaml` with name, description, outputs
 - [ ] Created `system_prompt.md` with agent instructions
 - [ ] Created `prompt.md` with default requirements
-- [ ] Created all 5 persona prompts in `prompts/`
+- [ ] Created all 3 persona prompts in `prompts/`
 - [ ] Created `.gitignore` for results/ and *.svg
 - [ ] All prompts request the same outcome (different styles)
 - [ ] Ran with `--all` to verify all personas produce valid output

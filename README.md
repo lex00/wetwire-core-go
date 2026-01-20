@@ -25,7 +25,7 @@ The type system and lint rules act as a force multiplier — cheaper models can 
 - **agents** - Unified Agent architecture with MCP tool integration
 - **mcp** - MCP server for Claude Code integration with standard tool definitions
 - **providers** - AI provider abstraction (Anthropic API, Claude Code, Kiro)
-- **personas** - Developer persona definitions (Beginner, Intermediate, Expert, Terse, Verbose)
+- **personas** - Developer persona definitions (Beginner, Intermediate, Expert) with custom persona support
 - **scoring** - 4-dimension evaluation rubric (0-12 scale)
 - **results** - Session tracking and RESULTS.md generation
 - **orchestrator** - Developer/Runner agent coordination
@@ -145,9 +145,8 @@ output/
 │   ├── cfn-templates/s3-bucket.yaml
 │   └── .gitlab-ci.yml
 ├── beginner/
-├── expert/
-├── terse/
-└── verbose/
+├── intermediate/
+└── expert/
 ```
 
 ## Package Reference
@@ -205,7 +204,7 @@ resp, _ := provider.StreamMessage(ctx, req, handler)
 ### personas
 
 ```go
-persona, _ := personas.Get("beginner")  // beginner, intermediate, expert, terse, verbose
+persona, _ := personas.Get("beginner")  // beginner, intermediate, expert (+ custom)
 fmt.Println(persona.Name, persona.Description)
 ```
 
