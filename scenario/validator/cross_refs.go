@@ -213,10 +213,16 @@ func createSearchPatterns(ref string) []string {
 		switch key {
 		case "service_name":
 			patterns = append(patterns, `k8s\.service\.name`)
+			patterns = append(patterns, `k8s\.service_name`)
 			patterns = append(patterns, `service\.name`)
+			// Match as JSON value: "k8s.service_name" or "k8s.service.name"
+			patterns = append(patterns, `"k8s\.service[_.]name"`)
 		case "namespace":
 			patterns = append(patterns, `k8s\.namespace\.name`)
+			patterns = append(patterns, `k8s\.namespace`)
 			patterns = append(patterns, `namespace\.name`)
+			// Match as JSON value: "k8s.namespace" or "k8s.namespace.name"
+			patterns = append(patterns, `"k8s\.namespace[._]?name?"`)
 		}
 	}
 

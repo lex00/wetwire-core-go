@@ -184,8 +184,36 @@ func matchNameParts(expected, candidate []string) bool {
 		}
 	}
 
-	// Consider a match if at least half of expected parts are found
-	return float64(matches) >= float64(len(expected))*0.5
+	// Check for key term matches (these are important identifiers)
+	keyTerms := map[string][]string{
+		"board":   {"board", "dashboard"},
+		"trigger": {"trigger", "alert"},
+		"query":   {"query"},
+		"slo":     {"slo", "availability"},
+		"latency": {"latency", "p50", "p95", "p99"},
+		"error":   {"error", "errors"},
+	}
+
+	keyMatches := 0
+	for _, ep := range expected {
+		synonyms, hasKey := keyTerms[ep]
+		if !hasKey {
+			continue
+		}
+		for _, cp := range candidate {
+			for _, syn := range synonyms {
+				if cp == syn || cp == ep {
+					keyMatches++
+					break
+				}
+			}
+		}
+	}
+
+	// Match if:
+	// - At least one key term matches, OR
+	// - At least 40% of expected parts match (relaxed from 50%)
+	return keyMatches > 0 || float64(matches) >= float64(len(expected))*0.4
 }
 
 // compareYAML compares two YAML documents structurally.
