@@ -206,6 +206,12 @@ func createSearchPatterns(ref string) []string {
 		patterns = append(patterns, fmt.Sprintf(`(?i)%s:\s*\S+`, variant))
 		// Match JSON: "field": "value"
 		patterns = append(patterns, fmt.Sprintf(`(?i)"%s"\s*:\s*"[^"]+"`, variant))
+		// Match shell variable assignment: VAR=value or VAR=$(...)
+		patterns = append(patterns, fmt.Sprintf(`(?i)%s=\S+`, variant))
+		// Match shell variable reference: $VAR or ${VAR}
+		patterns = append(patterns, fmt.Sprintf(`(?i)\$\{?%s\}?`, variant))
+		// Match CloudFormation OutputKey reference
+		patterns = append(patterns, fmt.Sprintf(`(?i)OutputKey==.%s.`, variant))
 	}
 
 	// 3. For k8s references, look for specific k8s field patterns
@@ -248,9 +254,17 @@ func getFieldVariants(key string) []string {
 		camel := snakeToCamel(key)
 		variants = append(variants, camel)
 
+		// PascalCase
+		pascal := snakeToPascal(key)
+		variants = append(variants, pascal)
+
 		// kebab-case
 		kebab := strings.ReplaceAll(key, "_", "-")
 		variants = append(variants, kebab)
+
+		// UPPER_CASE
+		upper := strings.ToUpper(key)
+		variants = append(variants, upper)
 
 		// Just the last word (e.g., "service_name" -> "service", "name")
 		parts := strings.Split(key, "_")
@@ -264,6 +278,17 @@ func getFieldVariants(key string) []string {
 func snakeToCamel(s string) string {
 	parts := strings.Split(s, "_")
 	for i := 1; i < len(parts); i++ {
+		if len(parts[i]) > 0 {
+			parts[i] = strings.ToUpper(parts[i][:1]) + parts[i][1:]
+		}
+	}
+	return strings.Join(parts, "")
+}
+
+// snakeToPascal converts snake_case to PascalCase.
+func snakeToPascal(s string) string {
+	parts := strings.Split(s, "_")
+	for i := 0; i < len(parts); i++ {
 		if len(parts[i]) > 0 {
 			parts[i] = strings.ToUpper(parts[i][:1]) + parts[i][1:]
 		}
