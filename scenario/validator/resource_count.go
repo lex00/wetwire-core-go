@@ -93,11 +93,24 @@ func (v *Validator) countDomainFiles(domainName string, patterns []string) ([]st
 	// Try domain subdirectory first
 	domainDir := filepath.Join(v.ResultsDir, domainName)
 	if info, err := os.Stat(domainDir); err == nil && info.IsDir() {
-		domainFiles, err := findMatchingFiles(domainDir, patterns)
+		domainFiles, err := findMatchingFilesRecursive(domainDir, patterns)
 		if err != nil {
 			return nil, err
 		}
 		files = append(files, domainFiles...)
+	}
+
+	// Check for common subdirectory patterns (cfn-templates, .github/workflows, etc.)
+	commonSubdirs := getCommonSubdirs(domainName)
+	for _, subdir := range commonSubdirs {
+		subdirPath := filepath.Join(v.ResultsDir, subdir)
+		if info, err := os.Stat(subdirPath); err == nil && info.IsDir() {
+			subdirFiles, err := findMatchingFilesRecursive(subdirPath, patterns)
+			if err != nil {
+				return nil, err
+			}
+			files = append(files, subdirFiles...)
+		}
 	}
 
 	// Also check root results directory for files that might belong to this domain
@@ -111,7 +124,25 @@ func (v *Validator) countDomainFiles(domainName string, patterns []string) ([]st
 	return uniqueStrings(files), nil
 }
 
-// findMatchingFiles finds all files matching the given patterns in a directory.
+// getCommonSubdirs returns common subdirectory names for a domain.
+func getCommonSubdirs(domainName string) []string {
+	switch domainName {
+	case "aws":
+		return []string{"cfn-templates", "cloudformation", "templates"}
+	case "github":
+		return []string{".github/workflows", ".github"}
+	case "gitlab":
+		return []string{} // .gitlab-ci.yml is at root
+	case "k8s", "kubernetes":
+		return []string{"k8s", "kubernetes", "manifests"}
+	case "honeycomb":
+		return []string{"honeycomb", "observability"}
+	default:
+		return []string{}
+	}
+}
+
+// findMatchingFiles finds all files matching the given patterns in a directory (non-recursive).
 func findMatchingFiles(dir string, patterns []string) ([]string, error) {
 	var files []string
 
@@ -139,6 +170,35 @@ func findMatchingFiles(dir string, patterns []string) ([]string, error) {
 	}
 
 	return files, nil
+}
+
+// findMatchingFilesRecursive finds all files matching the given patterns recursively.
+func findMatchingFilesRecursive(dir string, patterns []string) ([]string, error) {
+	var files []string
+
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // Skip errors
+		}
+		if info.IsDir() {
+			return nil
+		}
+
+		name := info.Name()
+		for _, pattern := range patterns {
+			matched, err := filepath.Match(pattern, name)
+			if err != nil {
+				continue
+			}
+			if matched {
+				files = append(files, path)
+				break
+			}
+		}
+		return nil
+	})
+
+	return files, err
 }
 
 // findMatchingFilesForDomain finds files in the root that likely belong to a domain.
