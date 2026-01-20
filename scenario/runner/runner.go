@@ -29,7 +29,7 @@ import (
 )
 
 // DefaultPersonas is the standard set of personas for scenario testing.
-var DefaultPersonas = []string{"beginner", "intermediate", "expert", "terse", "verbose"}
+var DefaultPersonas = []string{"beginner", "intermediate", "expert"}
 
 // Config configures a scenario run.
 type Config struct {

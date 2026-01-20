@@ -7,7 +7,7 @@ import (
 )
 
 func TestDefaultPersonas(t *testing.T) {
-	expected := []string{"beginner", "intermediate", "expert", "terse", "verbose"}
+	expected := []string{"beginner", "intermediate", "expert"}
 	if len(DefaultPersonas) != len(expected) {
 		t.Errorf("expected %d personas, got %d", len(expected), len(DefaultPersonas))
 	}
@@ -189,8 +189,8 @@ func TestConfigDefaults(t *testing.T) {
 		}
 
 		// When Personas is nil/empty, Run() should use DefaultPersonas
-		if cfg.Personas == nil && len(DefaultPersonas) != 5 {
-			t.Error("default personas should have 5 entries")
+		if cfg.Personas == nil && len(DefaultPersonas) != 3 {
+			t.Error("default personas should have 3 entries")
 		}
 	})
 

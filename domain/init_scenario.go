@@ -23,8 +23,6 @@ func ScaffoldScenario(name, description, domainName string) *ScenarioFiles {
 	files["prompts/beginner.md"] = beginnerMD(description)
 	files["prompts/intermediate.md"] = intermediateMD(description)
 	files["prompts/expert.md"] = expertMD(description)
-	files["prompts/terse.md"] = terseMD(description)
-	files["prompts/verbose.md"] = verboseMD(description)
 	files[".gitignore"] = gitignore()
 	files["expected/.gitkeep"] = ""
 
@@ -43,8 +41,6 @@ func ScaffoldCrossDomainScenario(name, description string, domains []string) *Sc
 	files["prompts/beginner.md"] = beginnerMD(description)
 	files["prompts/intermediate.md"] = intermediateMD(description)
 	files["prompts/expert.md"] = expertMD(description)
-	files["prompts/terse.md"] = terseMD(description)
-	files["prompts/verbose.md"] = verboseMD(description)
 	files[".gitignore"] = gitignore()
 
 	// Create expected/ subdirectories for each domain
@@ -103,8 +99,6 @@ prompts:
     beginner: prompts/beginner.md
     intermediate: prompts/intermediate.md
     expert: prompts/expert.md
-    terse: prompts/terse.md
-    verbose: prompts/verbose.md
 
 domains:
   - name: %s
@@ -205,55 +199,6 @@ Brief technical requirements.
 `, description)
 }
 
-func terseMD(description string) string {
-	return fmt.Sprintf(`%s.
-
-Key features, constraints.
-
-Output: files.
-`, description)
-}
-
-func verboseMD(description string) string {
-	return fmt.Sprintf(`# Comprehensive Request: %s
-
-## Background and Context
-
-Explain the context and why this is needed. Include relevant background
-information that might help understand the requirements better.
-
-## Detailed Requirements
-
-### Primary Output
-
-Detailed description of the first output file, including:
-- What it should contain
-- Why each feature is needed
-- Any specific configurations required
-
-### Secondary Output
-
-Detailed description of the second output file.
-
-## Technical Specifications
-
-- Specific technical requirements
-- Version constraints
-- Compatibility requirements
-
-## Expected Behavior
-
-Describe how the outputs should work together and what the end result
-should look like when everything is properly configured.
-
-## Additional Considerations
-
-- Security considerations
-- Performance considerations
-- Maintenance considerations
-`, description)
-}
-
 func gitignore() string {
 	return `# Scenario run outputs
 results/
@@ -277,8 +222,6 @@ prompts:
     beginner: prompts/beginner.md
     intermediate: prompts/intermediate.md
     expert: prompts/expert.md
-    terse: prompts/terse.md
-    verbose: prompts/verbose.md
 
 domains:
 `, name, description)

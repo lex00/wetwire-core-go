@@ -108,7 +108,7 @@ func TestOrchestrator_Run_EdgeCases(t *testing.T) {
 		{
 			name: "empty_prompt",
 			config: Config{
-				Persona:       personas.Terse,
+				Persona:       personas.Intermediate,
 				Scenario:      "test",
 				InitialPrompt: "",
 			},
@@ -119,7 +119,7 @@ func TestOrchestrator_Run_EdgeCases(t *testing.T) {
 		{
 			name: "very_long_prompt",
 			config: Config{
-				Persona:       personas.Verbose,
+				Persona:       personas.Expert,
 				Scenario:      "test",
 				InitialPrompt: strings.Repeat("Create resources. ", 1000),
 			},
@@ -445,7 +445,7 @@ func TestAIDeveloper_Respond(t *testing.T) {
 		},
 		{
 			name:    "responder_error",
-			persona: personas.Terse,
+			persona: personas.Intermediate,
 			message: "Question?",
 			responder: func(ctx context.Context, systemPrompt, message string) (string, error) {
 				return "", errors.New("API error")
@@ -455,7 +455,7 @@ func TestAIDeveloper_Respond(t *testing.T) {
 		},
 		{
 			name:    "empty_response",
-			persona: personas.Verbose,
+			persona: personas.Expert,
 			message: "Question?",
 			responder: func(ctx context.Context, systemPrompt, message string) (string, error) {
 				return "", nil
@@ -565,7 +565,7 @@ func TestOrchestrator_MultipleConcurrentRuns(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		go func(idx int) {
 			config := Config{
-				Persona:       personas.All()[idx%5],
+				Persona:       personas.All()[idx%3],
 				Scenario:      "concurrent_test",
 				InitialPrompt: "Test",
 			}

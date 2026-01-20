@@ -23,8 +23,6 @@ prompts:
     beginner: prompts/beginner.md
     intermediate: prompts/intermediate.md
     expert: prompts/expert.md
-    terse: prompts/terse.md
-    verbose: prompts/verbose.md
 domains:
   - name: domain-a
     cli: mock-cli-a
@@ -78,8 +76,8 @@ func TestValidateStructure_MissingFiles(t *testing.T) {
 		t.Error("expected validation errors for missing files")
 	}
 
-	// Should have errors for scenario.yaml, system_prompt.md, prompt.md, .gitignore, and 5 persona prompts
-	expectedMinErrors := 9
+	// Should have errors for scenario.yaml, system_prompt.md, prompt.md, .gitignore, and 3 persona prompts
+	expectedMinErrors := 7
 	if len(result.Errors) < expectedMinErrors {
 		t.Errorf("expected at least %d errors, got %d", expectedMinErrors, len(result.Errors))
 	}
@@ -147,8 +145,6 @@ prompts:
     beginner: prompts/beginner.md
     intermediate: prompts/intermediate.md
     expert: prompts/expert.md
-    terse: prompts/terse.md
-    verbose: prompts/verbose.md
 domains:
   - name: test
     outputs:
@@ -205,8 +201,6 @@ prompts:
     beginner: prompts/beginner.md
     intermediate: prompts/intermediate.md
     expert: prompts/expert.md
-    terse: prompts/terse.md
-    verbose: prompts/verbose.md
 domains:
   - name: test
     outputs:
@@ -249,7 +243,7 @@ domains:
 }
 
 func TestRequiredPersonas(t *testing.T) {
-	expected := []string{"beginner", "intermediate", "expert", "terse", "verbose"}
+	expected := []string{"beginner", "intermediate", "expert"}
 	if len(RequiredPersonas) != len(expected) {
 		t.Errorf("expected %d personas, got %d", len(expected), len(RequiredPersonas))
 	}

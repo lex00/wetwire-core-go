@@ -39,13 +39,13 @@ func TestGet_EdgeCases(t *testing.T) {
 		},
 		{
 			name:      "with_leading_space",
-			input:     " terse",
+			input:     " beginner",
 			wantName:  "",
 			wantError: true,
 		},
 		{
 			name:      "with_trailing_space",
-			input:     "verbose ",
+			input:     "expert ",
 			wantName:  "",
 			wantError: true,
 		},
@@ -99,17 +99,18 @@ func TestGet_EdgeCases(t *testing.T) {
 // TestAll_Completeness tests that All() returns all expected personas
 func TestAll_Completeness(t *testing.T) {
 	t.Parallel()
+	ClearCustom()
 
-	personas := All()
+	personas := BuiltIn()
 
-	assert.Len(t, personas, 5)
+	assert.Len(t, personas, 3)
 
 	names := make(map[string]bool)
 	for _, p := range personas {
 		names[p.Name] = true
 	}
 
-	expectedNames := []string{"beginner", "intermediate", "expert", "terse", "verbose"}
+	expectedNames := []string{"beginner", "intermediate", "expert"}
 	for _, name := range expectedNames {
 		assert.True(t, names[name], "Missing persona: %s", name)
 	}
@@ -118,8 +119,9 @@ func TestAll_Completeness(t *testing.T) {
 // TestAll_Uniqueness tests that all personas have unique names
 func TestAll_Uniqueness(t *testing.T) {
 	t.Parallel()
+	ClearCustom()
 
-	personas := All()
+	personas := BuiltIn()
 	names := make(map[string]bool)
 
 	for _, p := range personas {
@@ -132,7 +134,7 @@ func TestAll_Uniqueness(t *testing.T) {
 func TestAll_ValidStructure(t *testing.T) {
 	t.Parallel()
 
-	personas := All()
+	personas := BuiltIn()
 
 	for _, p := range personas {
 		t.Run(p.Name, func(t *testing.T) {
@@ -147,12 +149,13 @@ func TestAll_ValidStructure(t *testing.T) {
 // TestNames_Completeness tests that Names() returns all persona names
 func TestNames_Completeness(t *testing.T) {
 	t.Parallel()
+	ClearCustom()
 
-	names := Names()
+	names := BuiltInNames()
 
-	assert.Len(t, names, 5)
+	assert.Len(t, names, 3)
 
-	expectedNames := []string{"beginner", "intermediate", "expert", "terse", "verbose"}
+	expectedNames := []string{"beginner", "intermediate", "expert"}
 	for _, expected := range expectedNames {
 		assert.Contains(t, names, expected)
 	}
@@ -161,9 +164,10 @@ func TestNames_Completeness(t *testing.T) {
 // TestNames_Order tests that Names() returns personas in expected order
 func TestNames_Order(t *testing.T) {
 	t.Parallel()
+	ClearCustom()
 
-	names := Names()
-	all := All()
+	names := BuiltInNames()
+	all := BuiltIn()
 
 	assert.Len(t, names, len(all))
 
@@ -204,31 +208,12 @@ func TestExpert_Characteristics(t *testing.T) {
 	assert.Contains(t, Expert.ExpectedBehavior, "exactly as specified")
 }
 
-// TestTerse_Characteristics tests Terse persona characteristics
-func TestTerse_Characteristics(t *testing.T) {
-	t.Parallel()
-
-	assert.Equal(t, "terse", Terse.Name)
-	assert.Contains(t, Terse.Description, "Minimal")
-	assert.Contains(t, strings.ToLower(Terse.SystemPrompt), "concise")
-	assert.Contains(t, Terse.ExpectedBehavior, "infer")
-}
-
-// TestVerbose_Characteristics tests Verbose persona characteristics
-func TestVerbose_Characteristics(t *testing.T) {
-	t.Parallel()
-
-	assert.Equal(t, "verbose", Verbose.Name)
-	assert.Contains(t, strings.ToLower(Verbose.Description), "over-explain")
-	assert.Contains(t, strings.ToLower(Verbose.SystemPrompt), "verbose")
-	assert.Contains(t, Verbose.ExpectedBehavior, "filter")
-}
 
 // TestSystemPrompt_Length tests that system prompts are substantial
 func TestSystemPrompt_Length(t *testing.T) {
 	t.Parallel()
 
-	personas := All()
+	personas := BuiltIn()
 
 	for _, p := range personas {
 		t.Run(p.Name, func(t *testing.T) {
@@ -242,7 +227,7 @@ func TestSystemPrompt_Length(t *testing.T) {
 func TestSystemPrompt_NoTemplateErrors(t *testing.T) {
 	t.Parallel()
 
-	personas := All()
+	personas := BuiltIn()
 
 	for _, p := range personas {
 		t.Run(p.Name, func(t *testing.T) {
@@ -263,7 +248,7 @@ func TestSystemPrompt_NoTemplateErrors(t *testing.T) {
 func TestDescription_Clarity(t *testing.T) {
 	t.Parallel()
 
-	personas := All()
+	personas := BuiltIn()
 
 	for _, p := range personas {
 		t.Run(p.Name, func(t *testing.T) {
@@ -279,7 +264,7 @@ func TestDescription_Clarity(t *testing.T) {
 func TestExpectedBehavior_Clarity(t *testing.T) {
 	t.Parallel()
 
-	personas := All()
+	personas := BuiltIn()
 
 	for _, p := range personas {
 		t.Run(p.Name, func(t *testing.T) {
@@ -340,9 +325,10 @@ func TestGet_CaseInsensitivity(t *testing.T) {
 // TestAll_ReturnsCopies tests that All() returns a new slice each time
 func TestAll_ReturnsCopies(t *testing.T) {
 	t.Parallel()
+	ClearCustom()
 
-	all1 := All()
-	all2 := All()
+	all1 := BuiltIn()
+	all2 := BuiltIn()
 
 	// Should be equal but not the same slice
 	assert.Equal(t, all1, all2)
@@ -356,9 +342,10 @@ func TestAll_ReturnsCopies(t *testing.T) {
 // TestNames_ReturnsCopies tests that Names() returns a new slice each time
 func TestNames_ReturnsCopies(t *testing.T) {
 	t.Parallel()
+	ClearCustom()
 
-	names1 := Names()
-	names2 := Names()
+	names1 := BuiltInNames()
+	names2 := BuiltInNames()
 
 	// Should be equal but not the same slice
 	assert.Equal(t, names1, names2)
@@ -369,28 +356,22 @@ func TestNames_ReturnsCopies(t *testing.T) {
 	assert.NotEqual(t, names1[0], names2[0])
 }
 
-// TestPersona_SystemPromptExamples tests that system prompts contain examples
+// TestPersona_SystemPromptExamples tests that beginner prompts contain question examples
 func TestPersona_SystemPromptExamples(t *testing.T) {
 	t.Parallel()
 
-	// Terse and Verbose should have communication examples
-	terseLower := strings.ToLower(Terse.SystemPrompt)
+	// Beginner should have example questions
+	beginnerLower := strings.ToLower(Beginner.SystemPrompt)
 	assert.True(t,
-		strings.Contains(terseLower, "example") ||
-			strings.Contains(terseLower, "log bucket") ||
-			strings.Contains(terseLower, "lambda"),
-		"Terse persona should have communication examples")
-
-	verboseLower := strings.ToLower(Verbose.SystemPrompt)
-	assert.True(t,
-		strings.Contains(verboseLower, "example") ||
-			strings.Contains(verboseLower, "instead of"),
-		"Verbose persona should have communication examples")
+		strings.Contains(beginnerLower, "should") ||
+			strings.Contains(beginnerLower, "?"),
+		"Beginner persona should have example questions")
 }
 
 // TestGet_ErrorMessage tests error message quality
 func TestGet_ErrorMessage(t *testing.T) {
 	t.Parallel()
+	ClearCustom()
 
 	_, err := Get("nonexistent")
 	require.Error(t, err)
@@ -398,12 +379,12 @@ func TestGet_ErrorMessage(t *testing.T) {
 	errMsg := err.Error()
 	assert.Contains(t, errMsg, "unknown persona")
 	assert.Contains(t, errMsg, "nonexistent")
-	assert.Contains(t, errMsg, "available")
+	assert.Contains(t, errMsg, "built-in")
 
-	// Should list available personas
-	for _, name := range []string{"beginner", "intermediate", "expert", "terse", "verbose"} {
+	// Should list built-in personas
+	for _, name := range []string{"beginner", "intermediate", "expert"} {
 		assert.Contains(t, errMsg, name,
-			"Error message should list available persona: %s", name)
+			"Error message should list built-in persona: %s", name)
 	}
 }
 
@@ -411,7 +392,7 @@ func TestGet_ErrorMessage(t *testing.T) {
 func TestPersona_FieldsNotEmpty(t *testing.T) {
 	t.Parallel()
 
-	personas := All()
+	personas := BuiltIn()
 
 	for _, p := range personas {
 		t.Run(p.Name, func(t *testing.T) {
@@ -427,7 +408,7 @@ func TestPersona_FieldsNotEmpty(t *testing.T) {
 func TestPersona_SystemPromptStructure(t *testing.T) {
 	t.Parallel()
 
-	personas := All()
+	personas := BuiltIn()
 
 	for _, p := range personas {
 		t.Run(p.Name, func(t *testing.T) {
@@ -475,36 +456,19 @@ func TestExpert_KeyPhrases(t *testing.T) {
 	assert.True(t, found, "Expert should demonstrate expertise")
 }
 
-// TestTerse_KeyPhrases tests that Terse emphasizes brevity
-func TestTerse_KeyPhrases(t *testing.T) {
+// TestIntermediate_KeyPhrases tests that Intermediate has experience phrases
+func TestIntermediate_KeyPhrases(t *testing.T) {
 	t.Parallel()
 
-	lower := strings.ToLower(Terse.SystemPrompt)
+	lower := strings.ToLower(Intermediate.SystemPrompt)
 
-	brevityPhrases := []string{"concise", "minimal", "few words", "short"}
+	intermediatePhrases := []string{"moderate", "experience", "basics", "clear"}
 	found := false
-	for _, phrase := range brevityPhrases {
+	for _, phrase := range intermediatePhrases {
 		if strings.Contains(lower, phrase) {
 			found = true
 			break
 		}
 	}
-	assert.True(t, found, "Terse should emphasize brevity")
-}
-
-// TestVerbose_KeyPhrases tests that Verbose emphasizes detail
-func TestVerbose_KeyPhrases(t *testing.T) {
-	t.Parallel()
-
-	lower := strings.ToLower(Verbose.SystemPrompt)
-
-	verbosePhrases := []string{"verbose", "explain", "context", "detail"}
-	found := false
-	for _, phrase := range verbosePhrases {
-		if strings.Contains(lower, phrase) {
-			found = true
-			break
-		}
-	}
-	assert.True(t, found, "Verbose should emphasize verbosity")
+	assert.True(t, found, "Intermediate should show experience")
 }

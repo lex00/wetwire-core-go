@@ -3,11 +3,15 @@
 // Personas simulate different types of users interacting with the Runner agent.
 // Each persona has a distinct communication style that tests different aspects
 // of the Runner's capabilities.
+//
+// Built-in personas: beginner, intermediate, expert
+// Custom personas can be registered using Register().
 package personas
 
 import (
 	"fmt"
 	"strings"
+	"sync"
 )
 
 // Persona represents a simulated developer with specific characteristics.
@@ -80,62 +84,84 @@ If the Runner asks something you already specified, point that out.`,
 		ExpectedBehavior: "Runner should implement exactly as specified with minimal questions",
 	}
 
-	// Terse simulates a user who provides minimal information.
-	Terse = Persona{
-		Name:        "terse",
-		Description: "Minimal words, expects the system to figure out details",
-		Traits:      []string{"brief", "implicit", "trusting", "concise"},
-		SystemPrompt: `You are extremely concise. Use as few words as possible.
-Examples of your communication style:
-- "storage with encryption"
-- "api endpoint"
-- "database replica"
-
-Never explain yourself. Never ask questions back.
-If asked a question, answer with one word or a short phrase.
-Trust the system to make reasonable choices.`,
-		ExpectedBehavior: "Runner should infer reasonable defaults from minimal input",
-	}
-
-	// Verbose simulates a user who over-explains.
-	Verbose = Persona{
-		Name:        "verbose",
-		Description: "Over-explains everything, buries requirements in prose",
-		Traits:      []string{"wordy", "contextual", "tangential", "explanatory"},
-		SystemPrompt: `You are extremely verbose and tend to over-explain.
-Include background context, reasoning, and tangential information.
-Bury the actual requirements within paragraphs of explanation.
-
-Example: Instead of "I need storage for logs", say:
-"So I've been thinking about our logging infrastructure, and you know how
-we've had issues in the past with log retention and finding the right logs
-when we need them for debugging? Well, I was reading this blog post about
-best practices and it mentioned that having centralized logging storage
-could really help with that. So I'm thinking maybe we should set up some
-storage specifically for logs. But I'm not sure about the exact configuration..."
-
-Make the Runner work to extract the actual requirements.`,
-		ExpectedBehavior: "Runner should filter signal from noise and clarify core requirements",
-	}
 )
 
-// All returns all predefined personas.
+// customPersonas holds user-registered personas.
+var (
+	customPersonas = make(map[string]Persona)
+	customMu       sync.RWMutex
+)
+
+// BuiltIn returns the three built-in personas.
+func BuiltIn() []Persona {
+	return []Persona{Beginner, Intermediate, Expert}
+}
+
+// All returns all personas (built-in and custom).
 func All() []Persona {
-	return []Persona{Beginner, Intermediate, Expert, Terse, Verbose}
+	result := BuiltIn()
+	customMu.RLock()
+	defer customMu.RUnlock()
+	for _, p := range customPersonas {
+		result = append(result, p)
+	}
+	return result
 }
 
 // Get returns a persona by name, or an error if not found.
+// Checks built-in personas first, then custom personas.
 func Get(name string) (Persona, error) {
 	name = strings.ToLower(name)
-	for _, p := range All() {
+
+	// Check built-in personas
+	for _, p := range BuiltIn() {
 		if p.Name == name {
 			return p, nil
 		}
 	}
-	return Persona{}, fmt.Errorf("unknown persona: %s (available: beginner, intermediate, expert, terse, verbose)", name)
+
+	// Check custom personas
+	customMu.RLock()
+	defer customMu.RUnlock()
+	if p, ok := customPersonas[name]; ok {
+		return p, nil
+	}
+
+	return Persona{}, fmt.Errorf("unknown persona: %s (built-in: beginner, intermediate, expert; custom: %s)", name, customNames())
 }
 
-// Names returns the names of all available personas.
+// Register adds a custom persona. Returns error if name conflicts with built-in.
+func Register(p Persona) error {
+	name := strings.ToLower(p.Name)
+
+	// Check for conflict with built-in
+	for _, builtin := range BuiltIn() {
+		if builtin.Name == name {
+			return fmt.Errorf("cannot override built-in persona: %s", name)
+		}
+	}
+
+	customMu.Lock()
+	defer customMu.Unlock()
+	customPersonas[name] = p
+	return nil
+}
+
+// Unregister removes a custom persona by name.
+func Unregister(name string) {
+	customMu.Lock()
+	defer customMu.Unlock()
+	delete(customPersonas, strings.ToLower(name))
+}
+
+// ClearCustom removes all custom personas.
+func ClearCustom() {
+	customMu.Lock()
+	defer customMu.Unlock()
+	customPersonas = make(map[string]Persona)
+}
+
+// Names returns the names of all available personas (built-in and custom).
 func Names() []string {
 	personas := All()
 	names := make([]string, len(personas))
@@ -143,4 +169,23 @@ func Names() []string {
 		names[i] = p.Name
 	}
 	return names
+}
+
+// BuiltInNames returns just the built-in persona names.
+func BuiltInNames() []string {
+	return []string{"beginner", "intermediate", "expert"}
+}
+
+// customNames returns comma-separated custom persona names (for error messages).
+func customNames() string {
+	customMu.RLock()
+	defer customMu.RUnlock()
+	if len(customPersonas) == 0 {
+		return "none"
+	}
+	names := make([]string, 0, len(customPersonas))
+	for name := range customPersonas {
+		names = append(names, name)
+	}
+	return strings.Join(names, ", ")
 }

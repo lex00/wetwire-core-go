@@ -43,7 +43,7 @@ func (r StructureResult) Error() string {
 }
 
 // RequiredPersonas is the list of persona prompts that must exist.
-var RequiredPersonas = []string{"beginner", "intermediate", "expert", "terse", "verbose"}
+var RequiredPersonas = []string{"beginner", "intermediate", "expert"}
 
 // ValidateStructure checks that a scenario directory has all required files
 // and follows the specification.

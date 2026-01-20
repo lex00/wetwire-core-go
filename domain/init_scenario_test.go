@@ -18,8 +18,6 @@ func TestScaffoldScenario(t *testing.T) {
 			"prompts/beginner.md",
 			"prompts/intermediate.md",
 			"prompts/expert.md",
-			"prompts/terse.md",
-			"prompts/verbose.md",
 			".gitignore",
 			"expected/.gitkeep",
 		}
@@ -74,8 +72,6 @@ func TestScaffoldCrossDomainScenario(t *testing.T) {
 			"prompts/beginner.md",
 			"prompts/intermediate.md",
 			"prompts/expert.md",
-			"prompts/terse.md",
-			"prompts/verbose.md",
 			".gitignore",
 			"expected/aws/.gitkeep",
 		}

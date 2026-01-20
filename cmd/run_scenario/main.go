@@ -126,7 +126,7 @@ func printUsage() {
 	fmt.Println(`Usage: run_scenario [scenario_path] [persona] [output_dir] [flags]
 
 Flags:
-  --all       Run all personas (beginner, intermediate, expert, terse, verbose)
+  --all       Run all personas (beginner, intermediate, expert)
   --verbose   Show streaming output from Claude (recommended)
   --record    Generate SVG recordings (requires termsvg)
   --validate  Run validation after generation

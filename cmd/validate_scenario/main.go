@@ -179,13 +179,15 @@ Examples:
 }
 
 func isPersonaName(s string) bool {
-	personas := []string{"beginner", "intermediate", "expert", "terse", "verbose"}
-	for _, p := range personas {
+	// Check built-in personas
+	builtIn := []string{"beginner", "intermediate", "expert"}
+	for _, p := range builtIn {
 		if s == p {
 			return true
 		}
 	}
-	return false
+	// Custom personas are also valid - they don't start with special chars
+	return !strings.HasPrefix(s, "-") && !strings.HasPrefix(s, ".") && !strings.HasPrefix(s, "/")
 }
 
 func loadScenarioConfig(scenarioDir string) (*scenario.ScenarioConfig, error) {

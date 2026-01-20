@@ -10,7 +10,7 @@ wetwire-core-go/
 ├── mcp/               # MCP server and standard tools
 ├── providers/         # AI provider abstraction (Anthropic, Claude, Kiro)
 ├── agent/
-│   ├── personas/      # 5 built-in developer personas
+│   ├── personas/      # 3 built-in personas + custom persona support
 │   ├── scoring/       # 4-dimension evaluation rubric
 │   ├── orchestrator/  # Developer/Runner coordination
 │   ├── results/       # Session tracking, RESULTS.md generation
@@ -23,19 +23,29 @@ wetwire-core-go/
 
 ### Personas
 
-Five built-in personas for testing AI-human collaboration:
+Three built-in personas for testing AI-human collaboration:
 
 - **Beginner** — Uncertain, asks many questions, needs guidance
 - **Intermediate** — Some knowledge, specifies requirements but may miss details
 - **Expert** — Deep knowledge, precise requirements, minimal hand-holding
-- **Terse** — Minimal information, expects system to infer defaults
-- **Verbose** — Over-explains, buries requirements in prose
+
+Custom personas can be registered for domain-specific testing scenarios.
 
 ```go
 import "github.com/lex00/wetwire-core-go/agent/personas"
 
+// Get built-in persona
 persona, err := personas.Get("beginner")
 // persona.Name, persona.Description, persona.SystemPrompt
+
+// Register custom persona
+personas.Register(personas.Persona{
+    Name:             "security-auditor",
+    Description:      "Security-focused reviewer",
+    SystemPrompt:     "You are a security auditor reviewing infrastructure...",
+    Traits:           []string{"security-focused", "thorough", "skeptical"},
+    ExpectedBehavior: "Runner should prioritize security configurations",
+})
 ```
 
 ### Scoring
@@ -132,7 +142,7 @@ Domain packages (wetwire-aws-go, etc.) integrate wetwire-core-go via:
 1. **Two-agent model** — Developer asks, Runner generates
 2. **Lint enforcement** — RunnerAgent must lint after every write
 3. **Pass before done** — Code must pass linting before completion
-4. **Persona-based testing** — Test across all 5 developer styles
+4. **Persona-based testing** — Test across 3 built-in personas (beginner, intermediate, expert) plus custom personas as needed
 
 ## Running Tests
 
