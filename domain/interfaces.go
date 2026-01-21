@@ -220,3 +220,63 @@ type GraphOpts struct {
 	// VALIDATOR: respected in Graph output
 	Format string
 }
+
+// DifferDomain is an optional interface for domains that support semantic
+// comparison of outputs (e.g., comparing two CloudFormation templates or
+// two K8s manifests).
+//
+// VALIDATOR-AST: if implemented, "var _ DifferDomain = (*" present
+type DifferDomain interface {
+	Domain
+	// VALIDATOR: returns non-nil if interface claimed
+	// VALIDATOR-FILE: no newDiffCmd() in cmd/ if interface claimed
+	Differ() Differ
+}
+
+// Differ compares two outputs and returns semantic differences.
+//
+// VALIDATOR-AST: signature matches Diff(ctx *Context, file1, file2 string, opts DiffOpts) (*DiffResult, error)
+type Differ interface {
+	// VALIDATOR: returns *DiffResult not custom type
+	Diff(ctx *Context, file1, file2 string, opts DiffOpts) (*DiffResult, error)
+}
+
+// DiffOpts contains options for the Diff operation.
+// VALIDATOR: domain uses these fields, not custom opts
+type DiffOpts struct {
+	// IgnoreOrder ignores array element order in comparisons
+	// VALIDATOR: respected in Diff comparison
+	IgnoreOrder bool
+}
+
+// DiffResult contains the comparison result between two files.
+type DiffResult struct {
+	// Entries contains all differences found
+	Entries []DiffEntry
+
+	// Summary contains counts of changes
+	Summary DiffSummary
+}
+
+// DiffEntry represents a single difference between two files.
+type DiffEntry struct {
+	// Resource is the resource identifier (e.g., logical ID or apiVersion/kind/name)
+	Resource string
+
+	// Type is the resource type
+	Type string
+
+	// Action is the change type: "added", "removed", or "modified"
+	Action string
+
+	// Changes contains field-level changes for modified resources
+	Changes []string
+}
+
+// DiffSummary contains counts of differences.
+type DiffSummary struct {
+	Added    int
+	Removed  int
+	Modified int
+	Total    int
+}

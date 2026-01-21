@@ -274,6 +274,89 @@ func generateGraphCmd(grapher Grapher) *cobra.Command {
 	return cmd
 }
 
+// generateDiffCmd creates the 'diff' command for the CLI (optional).
+func generateDiffCmd(differ Differ) *cobra.Command {
+	var ignoreOrder bool
+
+	cmd := &cobra.Command{
+		Use:   "diff <file1> <file2>",
+		Short: "Compare two outputs semantically",
+		Long: `Perform a semantic comparison of two outputs (e.g., CloudFormation templates,
+K8s manifests) showing added, removed, and modified resources.
+
+The comparison is semantic, not textual - it compares the structure and values
+of resources rather than the raw text.`,
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			file1 := args[0]
+			file2 := args[1]
+
+			verbose, _ := cmd.Flags().GetBool("verbose")
+			format, _ := cmd.Flags().GetString("format")
+
+			workDir := "."
+			ctx := NewContextWithVerbose(context.Background(), workDir, verbose)
+			opts := DiffOpts{
+				IgnoreOrder: ignoreOrder,
+			}
+
+			diffResult, err := differ.Diff(ctx, file1, file2, opts)
+			if err != nil {
+				return fmt.Errorf("diff failed: %w", err)
+			}
+
+			return outputDiffResult(diffResult, format, file1, file2)
+		},
+	}
+
+	cmd.Flags().BoolVar(&ignoreOrder, "ignore-order", false, "Ignore array element order in comparisons")
+
+	return cmd
+}
+
+// outputDiffResult handles outputting the diff result based on the format flag.
+func outputDiffResult(result *DiffResult, format, file1, file2 string) error {
+	switch format {
+	case "json":
+		output, err := FormatDiffResult(result, format)
+		if err != nil {
+			return err
+		}
+		fmt.Println(output)
+
+	default: // "text"
+		if result.Summary.Total == 0 {
+			fmt.Printf("No differences between %s and %s\n", file1, file2)
+			return nil
+		}
+
+		fmt.Printf("Comparing %s vs %s\n\n", file1, file2)
+
+		for _, entry := range result.Entries {
+			switch entry.Action {
+			case "added":
+				fmt.Printf("  + %s (%s)\n", entry.Resource, entry.Type)
+			case "removed":
+				fmt.Printf("  - %s (%s)\n", entry.Resource, entry.Type)
+			case "modified":
+				fmt.Printf("  ~ %s (%s)\n", entry.Resource, entry.Type)
+				for _, change := range entry.Changes {
+					fmt.Printf("      %s\n", change)
+				}
+			}
+		}
+
+		fmt.Printf("\nSummary: %d added, %d removed, %d modified\n",
+			result.Summary.Added, result.Summary.Removed, result.Summary.Modified)
+	}
+
+	if result.Summary.Total > 0 {
+		os.Exit(1) // Exit code 1 indicates differences found
+	}
+
+	return nil
+}
+
 // outputResult handles outputting the result based on the format flag.
 func outputResult(result *Result, format string) error {
 	output, err := FormatResult(result, format)

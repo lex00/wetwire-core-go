@@ -51,6 +51,9 @@ func buildCLI(d Domain) *cobra.Command {
 	if gph, ok := d.(GrapherDomain); ok {
 		root.AddCommand(generateGraphCmd(gph.Grapher()))
 	}
+	if dif, ok := d.(DifferDomain); ok {
+		root.AddCommand(generateDiffCmd(dif.Differ()))
+	}
 
 	return root
 }

@@ -102,3 +102,18 @@ func formatRaw(result *Result) (string, error) {
 		return string(bytes), nil
 	}
 }
+
+// FormatDiffResult formats a DiffResult based on the requested output format.
+// Supported formats: json (text is handled separately in outputDiffResult).
+func FormatDiffResult(result *DiffResult, format string) (string, error) {
+	switch strings.ToLower(format) {
+	case "json":
+		bytes, err := json.MarshalIndent(result, "", "  ")
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal JSON: %w", err)
+		}
+		return string(bytes), nil
+	default:
+		return "", fmt.Errorf("unsupported format for diff: %s", format)
+	}
+}
