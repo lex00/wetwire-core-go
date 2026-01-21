@@ -105,7 +105,7 @@ writer.Write(session, "./output/RESULTS.md")
 The `domain/` package provides the core interface for domain implementations:
 
 - `domain.Domain` — Required interface (Name, Version, Builder, Linter, Initializer, Validator)
-- `domain.ImporterDomain`, `domain.ListerDomain`, `domain.GrapherDomain` — Optional interfaces
+- `domain.ImporterDomain`, `domain.ListerDomain`, `domain.GrapherDomain`, `domain.DifferDomain` — Optional interfaces
 - `domain.Run(d Domain) *cobra.Command` — Generates CLI from Domain
 - `domain.BuildMCPServer(d Domain) *mcp.Server` — Generates MCP server from Domain
 

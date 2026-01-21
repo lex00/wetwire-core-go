@@ -277,6 +277,10 @@ var _ domain.ListerDomain = (*MyDomain)(nil)
 // Visualize dependencies
 func (d *MyDomain) Grapher() domain.Grapher { return &MyGrapher{} }
 var _ domain.GrapherDomain = (*MyDomain)(nil)
+
+// Compare outputs semantically
+func (d *MyDomain) Differ() domain.Differ { return &MyDiffer{} }
+var _ domain.DifferDomain = (*MyDomain)(nil)
 ```
 
 ### Adding Custom Commands
