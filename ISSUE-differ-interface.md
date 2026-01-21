@@ -131,29 +131,29 @@ func (d *AzureDomain) Differ() domain.Differ {
 ## Implementation Tasks
 
 ### wetwire-core-go
-- [ ] Add `DiffOpts`, `DiffEntry`, `DiffResult` types to `domain/`
-- [ ] Add `Differ` interface to `domain/`
-- [ ] Add `DifferDomain` optional interface to `domain/`
-- [ ] Update `domain.Run()` to auto-register `diff` command for `DifferDomain`
-- [ ] Add tests for diff command registration
+- [x] Add `DiffOpts`, `DiffEntry`, `DiffResult` types to `domain/`
+- [x] Add `Differ` interface to `domain/`
+- [x] Add `DifferDomain` optional interface to `domain/`
+- [x] Update `domain.Run()` to auto-register `diff` command for `DifferDomain`
+- [x] Add tests for diff command registration
 
 ### wetwire-k8s-go
-- [ ] Create `differ/` package at top level (exported, not internal)
-- [ ] Move K8s manifest comparison logic from wetwire-gcp-go
-- [ ] Implement `domain.Differ` interface
-- [ ] Add comprehensive tests
-- [ ] Update K8sDomain to implement `DifferDomain`
+- [x] Create `differ/` package at top level (exported, not internal)
+- [x] Move K8s manifest comparison logic from wetwire-gcp-go
+- [x] Implement `domain.Differ` interface
+- [x] Add comprehensive tests
+- [x] Update K8sDomain to implement `DifferDomain`
 
 ### wetwire-gcp-go
-- [ ] Remove `internal/differ/` package
-- [ ] Import `github.com/lex00/wetwire-k8s-go/differ`
-- [ ] Update GCPDomain to implement `DifferDomain`
-- [ ] Update diff.go to use domain's Differ
+- [x] Remove `internal/differ/` package
+- [x] Import `github.com/lex00/wetwire-k8s-go/differ`
+- [x] Update GCPDomain to implement `DifferDomain`
+- [x] Update diff.go to use domain's Differ
 
 ### wetwire-aws-go
-- [ ] Update AWSDomain to implement `DifferDomain`
-- [ ] Refactor `internal/differ/` to implement `domain.Differ` interface
-- [ ] Update diff.go to use domain's Differ
+- [x] Update AWSDomain to implement `DifferDomain`
+- [x] Refactor `internal/differ/` to implement `domain.Differ` interface
+- [x] Update diff.go to use domain's Differ
 
 ## Benefits
 
