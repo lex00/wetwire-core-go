@@ -1,4 +1,7 @@
-# CLI Reference
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./wetwire-dark.svg">
+  <img src="./wetwire-light.svg" width="100" height="67">
+</picture>
 
 wetwire-core-go provides command-line tools for scenario testing and validation. These tools are used during development and CI to test AI agent interactions across different personas.
 

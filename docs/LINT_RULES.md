@@ -1,4 +1,7 @@
-# Lint Rules
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./wetwire-dark.svg">
+  <img src="./wetwire-light.svg" width="100" height="67">
+</picture>
 
 wetwire-core-go is an infrastructure library, not a domain package. It does not define domain-specific lint rules like `WAW` (AWS) or `WK8` (Kubernetes).
 

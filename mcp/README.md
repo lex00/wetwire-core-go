@@ -1,4 +1,7 @@
-# MCP Package
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../docs/wetwire-dark.svg">
+  <img src="../docs/wetwire-light.svg" width="100" height="67">
+</picture>
 
 The MCP (Model Context Protocol) package provides server infrastructure for exposing wetwire tools to Claude Code and other MCP clients.
 
