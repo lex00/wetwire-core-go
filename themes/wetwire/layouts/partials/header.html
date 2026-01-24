@@ -5,7 +5,7 @@
     </a>
     <nav>
       {{ range .Site.Menus.main }}
-      <a href="{{ .URL | relURL }}"{{ if $.IsMenuCurrent "main" . }} class="active"{{ end }}>{{ .Name }}</a>
+      <a href="{{ .URL | absURL }}"{{ if $.IsMenuCurrent "main" . }} class="active"{{ end }}>{{ .Name }}</a>
       {{ end }}
     </nav>
   </div>
