@@ -29,12 +29,12 @@ theme = "wetwire"
     pageRef = "/cli"
     weight = 10
   [[menus.main]]
-    name = "Scenarios"
-    pageRef = "/scenarios"
-    weight = 20
-  [[menus.main]]
     name = "Providers"
     pageRef = "/providers"
+    weight = 20
+  [[menus.main]]
+    name = "Scenarios"
+    pageRef = "/scenarios"
     weight = 30
   [[menus.main]]
     name = "FAQ"
