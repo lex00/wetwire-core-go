@@ -568,10 +568,11 @@ func TestNewRunnerAgent_Configuration(t *testing.T) {
 	}
 
 	tests := []struct {
-		name      string
-		config    RunnerConfig
-		setEnv    bool
-		wantError bool
+		name           string
+		config         RunnerConfig
+		setEnv         bool
+		requiresClaude bool
+		wantError      bool
 	}{
 		{
 			name: "valid_config_with_api_key",
@@ -599,8 +600,9 @@ func TestNewRunnerAgent_Configuration(t *testing.T) {
 				Domain: testDomain,
 				APIKey: "",
 			},
-			setEnv:    false,
-			wantError: false, // Claude CLI is available, so no API key needed
+			setEnv:         false,
+			requiresClaude: true,
+			wantError:      false, // Claude CLI is available, so no API key needed
 		},
 		{
 			name: "defaults_applied",
@@ -623,6 +625,9 @@ func TestNewRunnerAgent_Configuration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.requiresClaude && !claudeprovider.Available() {
+				t.Skip("Claude CLI not available")
+			}
 			if tt.setEnv {
 				t.Setenv("ANTHROPIC_API_KEY", "test-env-key")
 			} else {
