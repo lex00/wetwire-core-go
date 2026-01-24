@@ -1,29 +1,14 @@
 :root {
-  --bg: #ffffff;
-  --text: #1f2937;
-  --text-muted: #6b7280;
-  --border: #e5e7eb;
-  --link: #2563eb;
-  --link-hover: #1d4ed8;
-  --code-bg: #f3f4f6;
-  --pre-bg: #1f2937;
-  --pre-text: #f9fafb;
-  --header-bg: #f9fafb;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #111827;
-    --text: #f9fafb;
-    --text-muted: #9ca3af;
-    --border: #374151;
-    --link: #60a5fa;
-    --link-hover: #93c5fd;
-    --code-bg: #1f2937;
-    --pre-bg: #0f172a;
-    --pre-text: #f1f5f9;
-    --header-bg: #0f172a;
-  }
+  --bg: #0d1117;
+  --text: #e6edf3;
+  --text-muted: #8b949e;
+  --border: #30363d;
+  --link: #58a6ff;
+  --link-hover: #79c0ff;
+  --code-bg: #161b22;
+  --pre-bg: #161b22;
+  --pre-text: #e6edf3;
+  --header-bg: #010409;
 }
 
 * {
@@ -145,6 +130,7 @@ code {
   background: var(--code-bg);
   padding: 0.2em 0.4em;
   border-radius: 3px;
+  color: #f0883e;
 }
 
 pre {
@@ -154,12 +140,14 @@ pre {
   border-radius: 6px;
   overflow-x: auto;
   margin-bottom: 1rem;
+  border: 1px solid var(--border);
 }
 
 pre code {
   background: none;
   padding: 0;
   font-size: 0.875rem;
+  color: var(--pre-text);
 }
 
 /* Tables */
