@@ -43,6 +43,7 @@ Thumbs.db
 # Scenario outputs
 skills/scenario/output/
 
-# SVG recordings (allow mascot)
+# SVG recordings (allow mascot and theme logo)
 *.svg
 !docs/wetwire*.svg
+!themes/wetwire/static/wetwire.svg
