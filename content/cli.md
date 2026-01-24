@@ -1,5 +1,6 @@
 ---
-title: "CLI Reference"
+title: "CLI"
+slug: cli
 ---
 
 wetwire-core-go provides command-line tools for scenario testing and validation.
