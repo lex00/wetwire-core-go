@@ -2,13 +2,8 @@ baseURL = "https://lex00.github.io/wetwire-core-go/"
 languageCode = "en-us"
 title = "Wetwire Core"
 
-# Import shared theme from wetwire
-[module]
-  [[module.imports]]
-    path = "github.com/lex00/wetwire/themes/wetwire"
-  [module.hugoVersion]
-    extended = true
-    min = "0.120.0"
+# Theme is added as git submodule in themes/wetwire
+theme = "wetwire"
 
 # Clean URLs
 [permalinks]
