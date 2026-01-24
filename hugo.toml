@@ -15,7 +15,7 @@ theme = "wetwire"
 # Syntax highlighting
 [markup]
   [markup.highlight]
-    style = "github-dark"
+    style = "dracula"
     lineNos = false
     tabWidth = 4
   [markup.goldmark]

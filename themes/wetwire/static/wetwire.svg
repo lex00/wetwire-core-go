@@ -3,8 +3,8 @@
     text {
       font-family: 'Consolas', 'DejaVu Sans Mono', 'Courier New', monospace;
       font-size: 7px;
-      fill: #6b7280;
-      stroke: #ffffff;
+      fill: #ea39b8;
+      stroke: #170229;
       stroke-width: 2;
       paint-order: stroke;
     }
