@@ -9,15 +9,7 @@ title: "Wetwire Core"
 [![Go](https://img.shields.io/badge/Go-1.23+-00ADD8?logo=go)](https://golang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Shared agent infrastructure for wetwire domain packages — providers, MCP servers, personas, and scoring.
-
-## Philosophy
-
-Wetwire uses typed constraints to reduce the model capability required for accurate code generation.
-
-**Core hypothesis:** Typed input + smaller model ≈ Semantic input + larger model
-
-The type system and lint rules act as a force multiplier — cheaper models produce quality output when guided by schema-generated types and iterative lint feedback.
+Agent infrastructure for wetwire.
 
 ## Documentation
 

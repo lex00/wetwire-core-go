@@ -7,10 +7,6 @@
 [![Go](https://img.shields.io/badge/Go-1.23+-00ADD8?logo=go)](https://golang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Wetwire uses typed constraints to reduce the model capability required for accurate code generation.
-
-**Core hypothesis:** Typed input + smaller model ≈ Semantic input + larger model
-
-This package provides the shared agent infrastructure for wetwire domain packages — providers, MCP servers, personas, and scoring.
+Agent infrastructure for wetwire.
 
 ## [Read the Documentation →](https://lex00.github.io/wetwire-core-go/)
